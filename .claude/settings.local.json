@@ -123,7 +123,9 @@
       "Read(//opt/homebrew/opt/openjdk/bin/**)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(awk -F/ '{print $1}')"
+      "Bash(awk -F/ '{print $1}')",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"---EXIT:$?---\")"
     ]
   },
   "enabledMcpjsonServers": [

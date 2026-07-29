@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 from core.schemas import APIResponse
 from core.supabase import get_supabase
 from middleware.auth import get_current_user
+from pipeline.engagement import log_engagement
 
 router = APIRouter(prefix="/decisions", tags=["decisions"])
 
@@ -45,9 +46,10 @@ def create_decision(
     client = get_supabase()
 
     # 1.3: review_id → project_id → user_id 검증
+    # signal_id도 함께 조회(Story 6.5: decision engagement 이벤트의 signal_id 재사용 — 추가 쿼리 없음)
     review_rows = (
         client.table("reviews")
-        .select("id, project_id")
+        .select("id, project_id, signal_id")
         .eq("id", body.review_id)
         .execute()
         .data
@@ -56,6 +58,7 @@ def create_decision(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
     project_id = review_rows[0]["project_id"]
+    signal_id = review_rows[0].get("signal_id")
 
     project_rows = (
         client.table("projects")
@@ -116,6 +119,25 @@ def create_decision(
             detail="Decision creation was denied",
         )
     decision_id = insert_result.data[0]["id"]
+
+    # Story 6.5: decision engagement 이벤트 로깅 (best-effort, 신규 insert 성공 경로에서만).
+    # 멱등 재요청(위의 existing/retry 분기)에선 여기 도달하지 않으므로 중복 로깅되지 않는다.
+    # signal_id는 위 review SELECT에서 재사용(추가 쿼리 없음). variant는 NULL(평가 시 impression과
+    # (user_id, signal_id)로 조인해 attach, D5). user_id는 소유권 검증을 통과한 project 소유자.
+    # signal_id가 NULL(review에 signal 미연결)이면 FK 위반으로 조용히 스킵(best-effort).
+    # log_engagement 자체가 best-effort지만, 여기서도 try/except로 감싸 어떤 이유로든 로깅이
+    # 예외를 던져도 201 응답을 막지 않도록 이중 보증한다(AD-5).
+    if signal_id:
+        try:
+            log_engagement(
+                client,
+                user_id,
+                signal_id,
+                "decision",
+                metadata={"choice": body.choice, "queue_timing": body.queue_timing},
+            )
+        except Exception:  # noqa: BLE001 — engagement 로깅은 decision 응답을 막지 않는다(AD-5)
+            pass
 
     # 1.7: 201 반환
     return APIResponse(data={"decision_id": decision_id})

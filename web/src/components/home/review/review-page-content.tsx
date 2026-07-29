@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { trackEngagement } from "@/lib/engagement";
 import { ResearchReviewContent } from "./research-review-content";
 import type { ReviewPayload } from "./research-review-content";
 import { ReviewGeneratingState } from "./review-generating-state";
@@ -47,6 +48,16 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
   );
   const cleanupRef = useRef<(() => void) | undefined>(undefined);
   const retryInFlightRef = useRef(false); // P9: 동시 retry 방지
+  const openTrackedSignalRef = useRef<string | null>(null); // 6.5: signalId별 open 1회
+
+  // Story 6.5: review-page 진입 시 open engagement 1회 전송(fire-and-forget).
+  // signalId 단위 가드 — 같은 signalId는 StrictMode 이중 마운트/재렌더에도 중복 전송 안 하고,
+  // signalId가 바뀌면(리마운트 없이 리렌더되는 경우 포함) 새 시그널의 open을 정상 전송한다.
+  useEffect(() => {
+    if (openTrackedSignalRef.current === signalId) return;
+    openTrackedSignalRef.current = signalId;
+    trackEngagement([{ signal_id: signalId, event_type: "open" }]);
+  }, [signalId]);
 
   // P7: async 제거 — cleanup 함수를 동기적으로 반환하여 unmount race 방지
   const triggerAndSubscribe = (reviewId: string) => {

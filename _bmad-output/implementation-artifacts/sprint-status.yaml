@@ -45,7 +45,7 @@
 #   - epics-insurance-playbook.md (Insurance Playbook) → keys prefixed with "insurance-"
 
 generated: 2026-07-23
-last_updated: 2026-07-29  # Story 6.1 review, epic-6 in-progress
+last_updated: 2026-07-29  # Story 6.5 code-review 완료 → done
 project: decision-os
 project_key: NOKEY
 tracking_system: file-system
@@ -102,11 +102,11 @@ development_status:
 
   # Epic 6: 실데이터 수집 & 시그널 품질 v2 (2026-07-29 스파이크 기반 신규)
   epic-6: in-progress
-  6-1-실-수집기-어댑터-and-소스-레지스트리: review          # dev 완료 — 실 수집기+레지스트리+격리+dedup, 179 tests green
-  6-2-의미-클러스터링-and-관련성-세이프티-필터: backlog
-  6-3-normalize-v2-and-signal-스키마-확장: backlog
-  6-4-recommender-v2: backlog
-  6-5-측정-하네스-and-engagement-로깅: backlog
+  6-1-실-수집기-어댑터-and-소스-레지스트리: done          # code-review 완료 → done (4 patch 적용, 1 decision defer, 7 defer, 14 dismiss, 179 tests green)
+  6-2-의미-클러스터링-and-관련성-세이프티-필터: done          # code-review 완료 → done (4 patch 적용: 결정론적 정렬·passthrough 세이프티·블록리스트 오탐·config 범위검증, 1 decision 해결, 6 defer, 4 dismiss, 192 tests green)
+  6-3-normalize-v2-and-signal-스키마-확장: done          # code-review 완료 → done (3 patch 적용: pass-through 라벨충돌·cluster_key set dedup·datetime aware 정규화, 1 decision 해결, 2 defer, 11 dismiss, 202 tests green)
+  6-4-recommender-v2: done          # code-review 완료 → done (2 patch 적용: _as_float NaN 방어·halflife 0나눗셈 가드, 1 decision 유지, 3 defer, 10 dismiss, 221 tests green)
+  6-5-측정-하네스-and-engagement-로깅: done          # code-review 완료 → done (3 patch: variant 충돌 unknown 분리·open signalId 가드·eval output 확장자 가드, 3 decision 해결(2 현행유지·1 patch), 7 defer, 15 dismiss, 249 tests green)
   epic-6-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────

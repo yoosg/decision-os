@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timezone, timedelta
 
 from supabase import Client
 
+from pipeline.engagement import log_engagement_bulk
 from pipeline.llm.base import LLMProvider
 from pipeline.logger import pipeline_log
 
@@ -12,15 +14,173 @@ _PAGE_SIZE = 1000
 # Memory RAG (Story 5.4) — 콜드 스타트 점수에 가산되는 코사인 유사도 가중치.
 # base(0.1~1.0) + _RAG_WEIGHT * top_similarity(0~1) → clamp(0.1, 1.0).
 # memory 보유 사용자가 콜드 스타트보다 개인화되도록 양수, 불변식 유지 위해 clamp.
+#
+# ⚠️ Story 6.4 스케일 정합성 주석: v1에서 base는 substring 카운트(0.1/0.4/0.7/1.0 이산)였다.
+# v2에서 base는 프로필·시그널 임베딩 코사인(연속 0.1~1.0, 실무상 0.1~0.6 밀집)으로 바뀌었으므로
+# `base + 0.5*top_sim`의 상대 균형이 달라진다(코사인 base가 작아 RAG 항 영향이 상대적으로 커질 여지).
+# 이 스토리에선 값(0.5)을 유지한다 — 최적 weight는 근거 없는 임의 튜닝이 아니라 6.5 held-out
+# engagement 측정으로 확정한다(D2). 향후 정규화 블렌드 `(1-w)*cold + w*sim`으로의 리팩터는 6.5 이후.
 _RAG_WEIGHT = 0.5
 # match_memories RPC가 반환할 memory 수. 블렌딩은 top_similarity 최댓값만 사용하므로
 # (거리 오름차순 정렬의 최근접 1행 = 최대 유사도) 1이면 충분하다. 상위 4행 조회/직렬화
 # 낭비를 제거 (코드리뷰 2026-07-28). 향후 top-k 평균 블렌딩 채택 시 이 값을 늘린다.
 _RAG_MATCH_COUNT = 1
 
+# ── Story 6.4: 랭킹 피처 가중치 (초기값 — 6.5 측정으로 튜닝, 상수로 분리) ──────────────
+# combined = clamp(0.1, 1.0, _W_RELEVANCE*base + _W_RECENCY*recency + _W_POPULARITY*pop + _W_AUTHORITY*auth)
+# 합=1.0. base(관련도)가 지배적이되 최신성·인기·권위가 보조 신호로 결합된다.
+_W_RELEVANCE = 0.70
+_W_RECENCY = 0.15
+_W_POPULARITY = 0.10
+_W_AUTHORITY = 0.05
+# 최신성 감쇠 반감기(일): published_at이 이 일수만큼 지날 때마다 recency_norm이 절반이 된다.
+_RECENCY_HALFLIFE_DAYS = 7
+# MMR 다양성 계수: mmr = λ*combined − (1−λ)*max_sim. λ가 클수록 관련도 우선, 작을수록 다양성 우선.
+_MMR_LAMBDA = 0.7
+
+
+def _clamp(x: float) -> float:
+    """relevance_score 불변식: [0.1, 1.0]로 강제 (daily_brief_signals.relevance_score는 DB CHECK 없음)."""
+    return max(min(x, 1.0), 0.1)
+
+
+def _norm(vec: list[float]) -> float:
+    """순수 파이썬 L2 노름 (numpy 금지 — AD-2/AD-6, clustering.py L61-63과 동일 시그니처, D3)."""
+    return math.sqrt(sum(x * x for x in vec))
+
+
+def _cosine(a: list[float], b: list[float], norm_a: float, norm_b: float) -> float:
+    """순수 파이썬 코사인 유사도. norm은 미리 계산해 전달(반복 최적화). clustering.py L65-73과 동일."""
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return sum(x * y for x, y in zip(a, b)) / (norm_a * norm_b)
+
+
+def _as_float(v) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return 0.0
+    # NaN/inf 방어: 랭킹 피처(popularity/authority)로 흘러들면 combined가 NaN으로 오염되어
+    # 정렬·MMR 비교 교란 + relevance_score에 NaN 기록(프런트 0~1 가정 위반). (코드리뷰 2026-07-29)
+    if math.isnan(f) or math.isinf(f):
+        return 0.0
+    return f
+
+
+def _parse_dt(value) -> datetime:
+    """ISO 문자열/날짜를 aware datetime(UTC)로 방어적 파싱 (D5). naive는 UTC로 간주, 'Z' 접미 지원."""
+    s = str(value).strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _recency_norm(published_at, brief_date: str) -> float:
+    """최신성 감쇠 [0,1]. published_at None/파싱실패 → 0.5(중립, AD-5). 미래 timestamp → 1.0 캡."""
+    if not published_at:
+        return 0.5
+    try:
+        pub = _parse_dt(published_at)
+        ref = _parse_dt(brief_date)
+    except Exception:
+        return 0.5
+    age_days = (ref - pub).total_seconds() / 86400.0
+    if age_days < 0:
+        return 1.0
+    # 0 나눗셈 방어: 반감기 상수는 6.5 튜닝으로 값 편집이 예고됨 → 0이면 1로 폴백. (코드리뷰 2026-07-29)
+    halflife = _RECENCY_HALFLIFE_DAYS or 1
+    return 0.5 ** (age_days / halflife)
+
+
+def _popularity_norm(popularity, batch_max_logpop: float) -> float:
+    """인기 로그 정규화 [0,1]. 배치 내 최대 log1p 대비 상대값. batch_max=0이면 0."""
+    p = _as_float(popularity)
+    if p <= 0 or batch_max_logpop <= 0:
+        return 0.0
+    return min(math.log1p(p) / batch_max_logpop, 1.0)
+
+
+def _authority_norm(source_authority) -> float:
+    """출처 권위 정규화 [0,1]. 0~4 등급 → /4.0. None → 0."""
+    return max(min(_as_float(source_authority) / 4.0, 1.0), 0.0)
+
+
+def _embed_profile(user_profile: dict, llm: LLMProvider, brief_date: str) -> list[float] | None:
+    """프로필(tech_stack + interests)을 1회 임베딩 → 콜드 스타트 코사인 base용 벡터.
+
+    빈 프로필/임베딩 실패 → None(로깅, safe-degrade → substring 폴백). 사용자당 1회만 호출(설계 A-2).
+    """
+    parts = list(user_profile.get("tech_stack") or []) + list(user_profile.get("interests") or [])
+    text = " ".join(str(p) for p in parts if p).strip()
+    if not text:
+        return None
+    try:
+        return llm.embed_text(text)
+    except Exception as e:
+        pipeline_log(
+            stage="recommender",
+            brief_date=brief_date,
+            user_count=0,
+            level="warning",
+            event="profile_embed_failed",
+            error=str(e)[:200],
+        )
+        return None
+
+
+def compute_relevance_score_v2(
+    signal_emb: list[float], signal_norm: float, profile_emb: list[float], profile_norm: float
+) -> float:
+    """콜드 스타트 v2 관련도: 프로필·시그널 임베딩 코사인 → clamp[0.1,1.0]. substring 매칭 완전 제거(AC1)."""
+    return _clamp(_cosine(signal_emb, profile_emb, signal_norm, profile_norm))
+
+
+def _mmr_rerank(
+    items: list[tuple[str, float, list[float] | None, float]], lambda_: float = _MMR_LAMBDA
+) -> list[tuple[str, float]]:
+    """MMR greedy 재랭킹 (AC3). items=[(signal_id, combined, emb|None, norm)].
+
+    매 라운드 mmr = λ*combined − (1−λ)*max_{선택됨} cosine. 최고 mmr 선택, 동점은 signal_id 오름차순.
+    임베딩 없는(norm 0) 시그널은 중복 페널티 0 → 탈락 없이 순서만 뒤로(AD-5). 반환은 (signal_id, combined).
+    """
+    remaining = list(items)
+    selected_embs: list[tuple[list[float], float]] = []
+    result: list[tuple[str, float]] = []
+    while remaining:
+        best = None
+        best_key: tuple[float, str] | None = None
+        for entry in remaining:
+            sid, combined, emb, norm = entry
+            if emb is not None and norm > 0 and selected_embs:
+                max_sim = max(_cosine(emb, semb, norm, snorm) for semb, snorm in selected_embs)
+            else:
+                max_sim = 0.0
+            mmr = lambda_ * combined - (1 - lambda_) * max_sim
+            key = (-mmr, sid)  # mmr 최대화, 동점 signal_id 오름차순 tie-break(결정론)
+            if best_key is None or key < best_key:
+                best_key = key
+                best = entry
+        remaining.remove(best)
+        sid, combined, emb, norm = best
+        result.append((sid, combined))
+        if emb is not None and norm > 0:
+            selected_embs.append((emb, norm))
+    return result
+
 
 def compute_relevance_score(signal: dict, user_profile: dict) -> float:
-    """MVP 콜드 스타트: 키워드 매칭 기반 관련성 점수.
+    """[v1 FALLBACK ONLY — Story 6.4] substring 키워드 매칭 콜드 스타트 점수.
+
+    ⚠️ 정상(llm 주입) 경로에서는 절대 사용하지 않는다. AC1이 요구한 "substring 매칭 제거"는
+    정상 경로에서 substring이 관여하지 않게 하라는 뜻이며(D1), 정상 경로 base는
+    compute_relevance_score_v2(프로필·시그널 임베딩 코사인)로 계산된다.
+    이 함수는 AD-5 안전 저하용으로만 남는다: `llm is None`(단위 테스트·오프라인) 또는
+    프로필 임베딩 불가 시, flat 0.1로 뭉개지지 않도록 순위를 보존하는 폴백.
+    (오매칭 예: tech="go"가 "google"에 substring 매칭 — 이 함수의 한계이자 v2 전환 이유.)
 
     tech_stack 매칭: +0.4/개, interests 매칭: +0.3/개
     최솟값 0.1 (콜드 스타트 — 매칭 없어도 브리프에 포함)
@@ -88,14 +248,13 @@ def _fetch_all_users(client: Client) -> list[dict]:
 
 
 def _signal_embed_text(signal: dict) -> str:
-    """Signal 임베딩 대상 텍스트 (memory_manager와 동일 모델로 임베딩되는 query 벡터 소스)."""
-    return " ".join(
-        part for part in (
-            signal.get("technology_name"),
-            signal.get("title"),
-            signal.get("summary"),
-        ) if part
-    ).strip()
+    """Signal 임베딩 대상 텍스트 (콜드 스타트 코사인 + Memory RAG query 둘 다에 쓰이는 단일 임베딩).
+
+    Story 6.4(AC4): memory는 memory_manager에서 `summary`만 임베딩하므로(동일 표현 공간), RAG query
+    비대칭("go→google" 인접 리뷰 파인딩)을 없애기 위해 **summary 중심**으로 맞춘다.
+    summary 없으면 title 폴백, 둘 다 없으면 "" (→ 임베딩 스킵, 기존 동작). 시그널당 임베딩 1회 불변(A-2).
+    """
+    return (signal.get("summary") or signal.get("title") or "").strip()
 
 
 def _embed_signal_list(
@@ -134,7 +293,7 @@ def _build_signal_embeddings(
         return {}
     sig_result = (
         client.table("signals")
-        .select("id,technology_name,title,summary")
+        .select("id,technology_name,title,summary,published_at,popularity,source_authority")
         .in_("id", signal_ids)
         .eq("status", "processed")
         .execute()
@@ -150,108 +309,136 @@ def _score_signals(
     brief_date: str,
     llm: LLMProvider | None,
     signal_embeddings: dict[str, list[float]] | None,
-) -> list[tuple[str, float]]:
-    """콜드 스타트 점수 + (memory 보유 시) Memory RAG 유사도 블렌딩 → (signal_id, score) 정렬 리스트.
+) -> tuple[list[tuple[str, float]], str]:
+    """Story 6.4 v2 스코어링 → (MMR 순서의 (signal_id, combined) 리스트, variant).
 
-    - llm 미주입 또는 memory 미보유 → 콜드 스타트 폴백(AC-A2).
-    - 임베딩/RPC 실패 → 콜드 스타트 점수로 안전 폴백, brief 생성 지속(AC-A2, AD-5).
-    - user_id 스코프는 match_memories 함수 본문에서 강제(AC-A3).
-    - 정렬은 (-score, signal_id)로 결정론적(설계 A-1 ③).
+    조립: (1) 프로필 임베딩 1회, (2) base = 코사인(프로필, 시그널) 또는 substring 폴백(D1),
+    (3) memory 보유 시 RAG 블렌드(base + _RAG_WEIGHT*top_sim), (4) 랭킹 피처 결합(최신성·인기·권위)
+    → combined[0.1,1.0], (5) MMR 재랭킹 → 순서 확정.
+
+    safe degradation(AD-5): llm 미주입 → substring 콜드 스타트, 프로필/시그널 임베딩 실패 → 해당 폴백,
+    RAG RPC 실패 → base 폴백. 어느 것도 brief 생성을 막지 않는다.
+    user_id 스코프는 match_memories 본문에서 강제(AC-A3). 정렬·MMR tie-break은 signal_id 오름차순(결정론).
+
+    Story 6.5: 두 번째 반환값 variant는 held-out 평가용 코호트 라벨 — memory RAG가 실제로 적용된
+    경로(memory_rag_applied)면 "rag", 그 외(llm None·memory 미보유·RAG 폴백)면 "coldstart".
+    pipeline_log의 memory_rag_applied/coldstart 판정과 동일 분기에서 파생(중복 판정 로직 신설 금지).
     """
-    base_scores = {sig["id"]: compute_relevance_score(sig, user_profile) for sig in signals}
+    # 배치 내 인기 정규화 기준(같은 브리프 후보들의 최대 log1p popularity)
+    batch_max_logpop = 0.0
+    for sig in signals:
+        lp = math.log1p(max(_as_float(sig.get("popularity")), 0.0))
+        if lp > batch_max_logpop:
+            batch_max_logpop = lp
 
-    def _sorted(scores: dict[str, float]) -> list[tuple[str, float]]:
-        return sorted(scores.items(), key=lambda x: (-x[1], x[0]))
-
-    if llm is None:
-        return _sorted(base_scores)
-
-    try:
-        # 배치 경로에서 계산된 임베딩 재사용, 없으면(온디맨드 단일 사용자) 지금 계산
-        embeddings = signal_embeddings
-        if embeddings is None:
-            embeddings = _embed_signal_list(signals, llm, brief_date)
-
-        mem_check = (
-            client.table("memories")
-            .select("id", count="exact")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
+    # ── (1) 임베딩: 시그널(배치 재사용 or 지금) + 프로필(사용자당 1회) ──
+    embeddings: dict[str, list[float]] = {}
+    norms: dict[str, float] = {}
+    profile_emb: list[float] | None = None
+    profile_norm = 0.0
+    if llm is not None:
+        embeddings = signal_embeddings if signal_embeddings is not None else _embed_signal_list(
+            signals, llm, brief_date
         )
-        memory_count = mem_check.count if mem_check.count is not None else len(mem_check.data or [])
+        for sid, emb in embeddings.items():
+            norms[sid] = _norm(emb)
+        profile_emb = _embed_profile(user_profile, llm, brief_date)
+        if profile_emb is not None:
+            profile_norm = _norm(profile_emb)
 
-        if not memory_count:
-            pipeline_log(
-                stage="recommender",
-                brief_date=brief_date,
-                user_count=0,
-                event="memory_rag_coldstart",
-                user_id=user_id,
-                memory_count=0,
+    # ── (2) base 관련도: 정상 경로 = 코사인, 폴백 = substring(D1) ──
+    base_scores: dict[str, float] = {}
+    for sig in signals:
+        sid = sig["id"]
+        emb = embeddings.get(sid)
+        sig_norm = norms.get(sid, 0.0)
+        if profile_emb is not None and profile_norm > 0 and emb is not None and sig_norm > 0:
+            base_scores[sid] = compute_relevance_score_v2(emb, sig_norm, profile_emb, profile_norm)
+        else:
+            # AD-5 폴백: llm None, 빈 프로필, 임베딩 실패 → substring(정상 경로엔 관여 안 함)
+            base_scores[sid] = compute_relevance_score(sig, user_profile)
+
+    # ── (3) Memory RAG 블렌드(보유 시에만). 실패는 base로 안전 폴백 ──
+    # variant(6.5): 기본 coldstart, memory_rag_applied 경로에서만 rag로 승격.
+    variant = "coldstart"
+    blended_scores = dict(base_scores)
+    if llm is not None:
+        try:
+            mem_check = (
+                client.table("memories")
+                .select("id", count="exact")
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
             )
-            return _sorted(base_scores)
+            memory_count = mem_check.count if mem_check.count is not None else len(mem_check.data or [])
 
-        final_scores: dict[str, float] = {}
-        for sig in signals:
-            sid = sig["id"]
-            base = base_scores[sid]
-            emb = embeddings.get(sid)
-            if emb is None:
-                final_scores[sid] = base
-                continue
-            try:
-                rpc_result = client.rpc(
-                    "match_memories",
-                    {
-                        "query_embedding": emb,
-                        "match_user_id": user_id,
-                        "match_count": _RAG_MATCH_COUNT,
-                    },
-                ).execute()
-                sims = [
-                    (row.get("similarity") or 0.0)
-                    for row in (rpc_result.data or [])
-                ]
-                top_sim = max(sims) if sims else 0.0
-            except Exception as e:
+            if not memory_count:
                 pipeline_log(
-                    stage="recommender",
-                    brief_date=brief_date,
-                    user_count=0,
-                    level="warning",
-                    event="memory_rag_query_failed",
-                    user_id=user_id,
-                    signal_id=sid,
-                    error=str(e)[:200],
+                    stage="recommender", brief_date=brief_date, user_count=0,
+                    event="memory_rag_coldstart", user_id=user_id, memory_count=0, scorer="v2",
                 )
-                final_scores[sid] = base
-                continue
-            blended = base + _RAG_WEIGHT * max(top_sim, 0.0)
-            final_scores[sid] = max(min(blended, 1.0), 0.1)
+            else:
+                for sig in signals:
+                    sid = sig["id"]
+                    emb = embeddings.get(sid)
+                    if emb is None:
+                        continue  # 임베딩 없는 시그널 → base 유지
+                    try:
+                        rpc_result = client.rpc(
+                            "match_memories",
+                            {
+                                "query_embedding": emb,
+                                "match_user_id": user_id,
+                                "match_count": _RAG_MATCH_COUNT,
+                            },
+                        ).execute()
+                        sims = [(row.get("similarity") or 0.0) for row in (rpc_result.data or [])]
+                        top_sim = max(sims) if sims else 0.0
+                    except Exception as e:
+                        pipeline_log(
+                            stage="recommender", brief_date=brief_date, user_count=0, level="warning",
+                            event="memory_rag_query_failed", user_id=user_id, signal_id=sid,
+                            error=str(e)[:200],
+                        )
+                        continue  # 해당 시그널만 base 폴백
+                    blended_scores[sid] = _clamp(base_scores[sid] + _RAG_WEIGHT * max(top_sim, 0.0))
+                variant = "rag"  # 6.5: memory RAG 실제 적용 → rag 코호트
+                pipeline_log(
+                    stage="recommender", brief_date=brief_date, user_count=0,
+                    event="memory_rag_applied", user_id=user_id, memory_count=memory_count, scorer="v2",
+                )
+        except Exception as e:
+            # AD-5: RAG 전체 실패 → base 유지, brief 생성 지속
+            blended_scores = dict(base_scores)
+            pipeline_log(
+                stage="recommender", brief_date=brief_date, user_count=0, level="warning",
+                event="memory_rag_coldstart", user_id=user_id, error=str(e)[:200], scorer="v2",
+            )
 
-        pipeline_log(
-            stage="recommender",
-            brief_date=brief_date,
-            user_count=0,
-            event="memory_rag_applied",
-            user_id=user_id,
-            memory_count=memory_count,
+    # ── (4) 랭킹 피처 결합 → combined[0.1,1.0] ──
+    combined_scores: dict[str, float] = {}
+    for sig in signals:
+        sid = sig["id"]
+        recency = _recency_norm(sig.get("published_at"), brief_date)
+        pop = _popularity_norm(sig.get("popularity"), batch_max_logpop)
+        auth = _authority_norm(sig.get("source_authority"))
+        combined_scores[sid] = _clamp(
+            _W_RELEVANCE * blended_scores[sid]
+            + _W_RECENCY * recency
+            + _W_POPULARITY * pop
+            + _W_AUTHORITY * auth
         )
-        return _sorted(final_scores)
 
-    except Exception as e:
-        # AD-5: RAG 전체 실패 시에도 콜드 스타트로 폴백하여 brief 생성 지속
-        pipeline_log(
-            stage="recommender",
-            brief_date=brief_date,
-            user_count=0,
-            level="warning",
-            event="memory_rag_coldstart",
-            user_id=user_id,
-            error=str(e)[:200],
-        )
-        return _sorted(base_scores)
+    # ── (5) MMR 재랭킹(임베딩 있을 때) or 결정론적 정렬(폴백) ──
+    valid_embs = {sid: e for sid, e in embeddings.items() if norms.get(sid, 0.0) > 0}
+    if valid_embs:
+        scored_items = [
+            (sig["id"], combined_scores[sig["id"]], valid_embs.get(sig["id"]), norms.get(sig["id"], 0.0))
+            for sig in signals
+        ]
+        return _mmr_rerank(scored_items, _MMR_LAMBDA), variant
+    return sorted(combined_scores.items(), key=lambda x: (-x[1], x[0])), variant
 
 
 def create_daily_brief_for_user(
@@ -297,7 +484,7 @@ def create_daily_brief_for_user(
     if signal_ids:
         sig_result = (
             client.table("signals")
-            .select("id,technology_name,title,summary")
+            .select("id,technology_name,title,summary,published_at,popularity,source_authority")
             .in_("id", signal_ids)
             .eq("status", "processed")
             .execute()
@@ -315,8 +502,10 @@ def create_daily_brief_for_user(
         )
         return None
 
-    # 점수 계산 + 정렬 (콜드 스타트 + Memory RAG 블렌딩, Story 5.4)
-    scored = _score_signals(
+    # 점수 계산 + MMR 순서 (v2: 코사인 콜드 스타트 + Memory RAG + 랭킹 피처 + MMR, Story 6.4)
+    # scored = [(signal_id, combined)] — position=MMR 순서, relevance_score=combined(D4)
+    # variant(6.5): 이 brief가 실제로 탄 랭킹 경로(rag|coldstart) — impression 정본 라벨.
+    scored, variant = _score_signals(
         signals, user_profile, user_id, client, brief_date, llm, signal_embeddings
     )
 
@@ -382,6 +571,29 @@ def create_daily_brief_for_user(
         )
         client.table("daily_briefs").update({"status": "failed"}).eq("id", brief_id).execute()
         return None
+
+    # Story 6.5: 서버 사이드 impression 정본 로깅 (best-effort, AD-5).
+    # daily_brief_signals insert 성공 직후에만 — brief에 노출된 각 시그널에 대해 그 사용자·brief의
+    # variant/position/relevance_score를 함께 기록. 추가 쿼리 없이 이미 계산된 값(scored·variant) 재사용.
+    # log_engagement_bulk 자체가 best-effort지만, 여기서도 try/except로 한 번 더 감싸 로깅이 어떤
+    # 이유로든 예외를 던져도 brief가 completed로 진행되도록 이중 보증한다(로깅은 순수 부수효과).
+    try:
+        log_engagement_bulk(
+            client,
+            [
+                {
+                    "user_id": user_id,
+                    "signal_id": sig_id,
+                    "event_type": "impression",
+                    "daily_brief_id": brief_id,
+                    "variant": variant,
+                    "metadata": {"position": pos + 1, "relevance_score": score},
+                }
+                for pos, (sig_id, score) in enumerate(scored)
+            ],
+        )
+    except Exception:  # noqa: BLE001 — impression 로깅은 brief 완료를 절대 막지 않는다(AD-5)
+        pass
 
     # completed 전이
     client.table("daily_briefs").update({

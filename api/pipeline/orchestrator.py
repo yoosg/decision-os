@@ -4,6 +4,7 @@ from datetime import date
 
 from core.config import settings
 from core.supabase import get_supabase
+from pipeline.clustering import cluster_and_filter
 from pipeline.collector.aggregator import run_collectors
 from pipeline.collector.stub import StubCollector
 from pipeline.fcm import (
@@ -52,17 +53,25 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="collect_done", article_count=len(articles))
 
-        # 2. Normalize
+        # 2. Cluster & Filter — Story 6.2: 의미 클러스터링 + 관련성/세이프티 필터.
+        #    Collect → [6.2] → Normalize → Build 순서. 결과 signal 수 = 클러스터 수라
+        #    LLM(build_signals) 호출이 원문이 아닌 토픽 수에 비례한다(AC3).
+        #    llm 부재/임베딩 실패는 모듈 가드가 pass-through로 안전 저하 처리(AD-5).
+        articles = cluster_and_filter(articles, llm, brief_date=brief_date)
+        pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
+                     event="cluster_done", article_count=len(articles))
+
+        # 3. Normalize
         signal_ids = normalize(articles, today, client, brief_date=brief_date)
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="normalize_done", new_signal_count=len(signal_ids))
 
-        # 3. Signal Builder — P1: llm 인스턴스 전달 (기존 코드는 api_key/model 문자열 전달로 TypeError)
+        # 4. Signal Builder — P1: llm 인스턴스 전달 (기존 코드는 api_key/model 문자열 전달로 TypeError)
         processed_ids = build_signals(signal_ids, client, llm, brief_date=brief_date)
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="signal_build_done", processed_count=len(processed_ids))
 
-        # 4. Reviewer (signal_id마다 모든 ai_research 프로젝트)
+        # 5. Reviewer (signal_id마다 모든 ai_research 프로젝트)
         total_reviews = 0
         for signal_id in processed_ids:
             review_ids = review_all_for_signal(signal_id, client, llm, brief_date=brief_date)
@@ -70,7 +79,7 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="review_done", review_count=total_reviews)
 
-        # 5. Recommender + Daily Brief 생성 (Story 5.4: Memory RAG 개인화 — llm 주입)
+        # 6. Recommender + Daily Brief 생성 (Story 5.4: Memory RAG 개인화 — llm 주입)
         brief_count = run_recommender(processed_ids, client, brief_date, llm)
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="pipeline_completed",

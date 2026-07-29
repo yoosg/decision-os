@@ -3,6 +3,7 @@
 오프라인 원칙: 실제 네트워크 호출 금지 — httpx.Client를 MagicMock/monkeypatch로
 대체하고 고정 RSS/Atom·HN JSON 픽스처를 주입한다.
 """
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import certifi
@@ -44,6 +45,24 @@ HN_JSON = {
         {"title": "New RAG technique", "url": "https://hn-ex.com/1", "objectID": "111"},
         {"title": "Show HN: my LLM tool", "url": None, "objectID": "222"},
         {"title": "", "url": "https://hn-ex.com/3", "objectID": "333"},  # 빈 제목 → 스킵
+    ]
+}
+
+# Story 6.3: pubDate 있는 RSS → published_at 파싱 검증용
+RSS_XML_WITH_DATE = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel>
+<item><title>Claude ships something</title><link>https://ex.com/d</link>
+<pubDate>Sat, 25 Jul 2026 08:30:00 +0000</pubDate></item>
+<item><title>No date here about GPT-5</title><link>https://ex.com/e</link></item>
+</channel></rss>"""
+
+# Story 6.3: points/created_at_i 있는 HN hit → popularity/published_at 파싱 검증용
+HN_JSON_WITH_META = {
+    "hits": [
+        {"title": "RAG breakthrough", "url": "https://hn-ex.com/m1", "objectID": "901",
+         "points": 240, "created_at_i": 1_770_000_000},
+        {"title": "LLM tool via ISO date", "url": "https://hn-ex.com/m2", "objectID": "902",
+         "created_at": "2026-07-25T08:30:00.000Z"},
     ]
 }
 
@@ -103,6 +122,17 @@ def test_rss_collector_respects_max_items():
     assert len(articles) == 1
 
 
+def test_rss_collector_parses_published_at():
+    """Story 6.3: pubDate 있으면 published_at UTC datetime, 없으면 None(safe degrade)."""
+    client = _client_returning(_FakeResponse(content=RSS_XML_WITH_DATE))
+    articles = RssCollector("Test", "https://feed", "official_blog", client).collect()
+
+    assert articles[0].published_at == datetime(2026, 7, 25, 8, 30, 0, tzinfo=timezone.utc)
+    assert articles[1].published_at is None  # pubDate 없음
+    # RSS는 popularity 없음 → 기본 0
+    assert articles[0].popularity == 0
+
+
 # ─── HackerNews 어댑터 ────────────────────────────────────────────────────────
 
 def test_hn_collector_maps_hits():
@@ -121,6 +151,26 @@ def test_hn_collector_respects_max_total():
     client = _client_returning(_FakeResponse(json_data=HN_JSON))
     articles = HackerNewsCollector(["RAG", "LLM"], client, max_total=1).collect()
     assert len(articles) == 1
+
+
+def test_hn_collector_parses_popularity_and_published_at():
+    """Story 6.3: points→popularity, created_at_i(unix)→published_at, created_at(ISO) 폴백."""
+    client = _client_returning(_FakeResponse(json_data=HN_JSON_WITH_META))
+    articles = HackerNewsCollector(["RAG"], client).collect()
+
+    assert articles[0].popularity == 240
+    assert articles[0].published_at == datetime.fromtimestamp(1_770_000_000, tz=timezone.utc)
+    # created_at(ISO) 폴백 경로
+    assert articles[1].published_at == datetime(2026, 7, 25, 8, 30, 0, tzinfo=timezone.utc)
+    # points 없으면 0(safe degrade)
+    assert articles[1].popularity == 0
+
+
+def test_hn_collector_missing_meta_safe_degrades():
+    """points/created_at 모두 없으면 popularity=0, published_at=None(예외 없음)."""
+    client = _client_returning(_FakeResponse(json_data=HN_JSON))
+    articles = HackerNewsCollector(["RAG"], client).collect()
+    assert all(a.popularity == 0 and a.published_at is None for a in articles)
 
 
 # ─── GitHub Releases 어댑터 ───────────────────────────────────────────────────

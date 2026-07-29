@@ -2,7 +2,7 @@
 
 Supabase Mock으로 실행 가능 — 환경변수 불필요.
 """
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from pipeline.collector.stub import StubCollector
@@ -36,6 +36,28 @@ def test_raw_article_with_content():
         content="본문 내용",
     )
     assert a.content == "본문 내용"
+
+
+# ─── Story 6.3: RawArticle 메타데이터 필드 확장 ──────────────────────────────
+
+def test_raw_article_metadata_defaults():
+    """신규 필드 기본값: published_at=None, popularity=0, cluster_key=None."""
+    a = RawArticle("MCP", "title", "https://x", "official_blog")
+    assert a.published_at is None
+    assert a.popularity == 0
+    assert a.cluster_key is None
+
+
+def test_raw_article_metadata_values():
+    """신규 필드 값 지정 생성."""
+    dt = datetime(2026, 7, 25, tzinfo=timezone.utc)
+    a = RawArticle(
+        "MCP", "title", "https://x", "hn",
+        published_at=dt, popularity=42, cluster_key="ck1",
+    )
+    assert a.published_at == dt
+    assert a.popularity == 42
+    assert a.cluster_key == "ck1"
 
 
 # ─── StubCollector 테스트 ─────────────────────────────────────────────────────
@@ -186,6 +208,53 @@ def test_normalizer_signal_sources_insert_failure():
     signal_ids = normalize(articles, date(2026, 7, 24), mock_client, brief_date="2026-07-24")
 
     assert signal_ids == []
+
+
+# ─── Story 6.3: normalize v2 메타데이터 집계 테스트 ──────────────────────────
+
+def _signals_upsert_payload(mock_client):
+    """signals upsert 호출의 payload(dict) 반환."""
+    return mock_client._signals_mock.upsert.call_args[0][0]
+
+
+def test_normalizer_aggregates_ranking_metadata():
+    """클러스터 멤버 3개 → published_at=최신, popularity=합, source_authority=최고등급, cluster_key 저장."""
+    articles = [
+        RawArticle("Claude", "A", "https://a.com", "hn",
+                   published_at=datetime(2026, 7, 20, tzinfo=timezone.utc),
+                   popularity=10, cluster_key="ck1"),
+        RawArticle("Claude", "B", "https://b.com", "official_blog",
+                   published_at=datetime(2026, 7, 25, tzinfo=timezone.utc),
+                   popularity=5, cluster_key="ck1"),
+        RawArticle("Claude", "C", "https://c.com", "github",
+                   published_at=None, popularity=3, cluster_key="ck1"),
+    ]
+    mock_client = _make_mock_client(upsert_data=[{"id": "sig"}])
+
+    normalize(articles, date(2026, 7, 25), mock_client, brief_date="d")
+
+    payload = _signals_upsert_payload(mock_client)
+    assert payload["published_at"] == datetime(2026, 7, 25, tzinfo=timezone.utc).isoformat()
+    assert payload["popularity"] == 18  # 10 + 5 + 3
+    assert payload["source_authority"] == 4  # official_blog(4) > github(3) > hn(2)
+    assert payload["cluster_key"] == "ck1"
+
+
+def test_normalizer_metadata_safe_degradation():
+    """멤버 모두 published_at=None, popularity=0 → payload published_at=None, popularity=0, cluster_key=None."""
+    articles = [
+        RawArticle("Claude", "A", "https://a.com", "other"),
+        RawArticle("Claude", "B", "https://b.com", "other"),
+    ]
+    mock_client = _make_mock_client(upsert_data=[{"id": "sig"}])
+
+    normalize(articles, date(2026, 7, 25), mock_client, brief_date="d")
+
+    payload = _signals_upsert_payload(mock_client)
+    assert payload["published_at"] is None
+    assert payload["popularity"] == 0
+    assert payload["source_authority"] == 0  # other = 0
+    assert payload["cluster_key"] is None
 
 
 # ─── technology_name 검증 테스트 ─────────────────────────────────────────────

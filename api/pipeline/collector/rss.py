@@ -9,6 +9,8 @@ aggregator가 담당한다.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import feedparser
 import httpx
 
@@ -34,6 +36,21 @@ def derive_tech(text: str) -> str:
         if kw.lower() in low:
             return kw
     return _GENERAL
+
+
+def _entry_published_at(entry) -> datetime | None:
+    """feedparser 엔트리의 published_parsed(time.struct_time)를 UTC datetime으로 변환.
+
+    Story 6.3: 6.4 랭킹의 최신성 신호. 외부 데이터 형식 변동에 대비해 방어적으로 —
+    없거나 파싱 실패 시 None(safe degrade, AD-5). 한 엔트리 파싱 실패가 수집을 중단시키지 않는다.
+    """
+    st = getattr(entry, "published_parsed", None)
+    if st is None:
+        return None
+    try:
+        return datetime(*st[:6], tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
 
 
 class RssCollector(BaseCollector):
@@ -79,6 +96,7 @@ class RssCollector(BaseCollector):
                     title=title,
                     url=link,
                     source_type=self._source_type,
+                    published_at=_entry_published_at(entry),
                 )
             )
         return out

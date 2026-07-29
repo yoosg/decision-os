@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { trackEngagement } from "@/lib/engagement";
 
 const REQUIRED_SECTIONS = new Set([
   "one_line_definition",
@@ -88,6 +89,10 @@ export function ContextStickyBar({
       if (ariaLiveRef.current) {
         ariaLiveRef.current.textContent = "지금 학습 버튼을 사용할 수 있습니다";
       }
+      // Story 6.5: 필수 섹션 전부 열람 → read_through 1회 전송(fire-and-forget).
+      // barGateOverride==='enabled'로 즉시 활성화된 케이스는 이 블록 위에서 early-return되므로
+      // 여기 도달하지 않는다 → 자연 열람일 때만 전송(강제 활성화는 실제 읽기 아님, D).
+      trackEngagement([{ signal_id: signalId, event_type: "read_through" }]);
     }
   }, [seenSections, barGateOverride]);
 

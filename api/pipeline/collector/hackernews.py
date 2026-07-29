@@ -8,6 +8,7 @@ HN Algolia `search_by_date` REST API(https, tags=story)로 여러 AI 키워드�
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
 import httpx
 
@@ -19,6 +20,38 @@ from pipeline.models import RawArticle
 _HN_API = "https://hn.algolia.com/api/v1/search_by_date"
 _MAX_HN = 10
 _PER_QUERY = 3
+
+
+def _hit_popularity(hit: dict) -> int:
+    """HN hit의 points → popularity(int). 없거나 형식 이상이면 0(safe degrade, AD-5)."""
+    try:
+        points = hit.get("points")
+        return int(points) if points is not None else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def _hit_published_at(hit: dict) -> datetime | None:
+    """HN hit의 발행 시각 → UTC datetime.
+
+    우선순위: created_at_i(unix 초) → created_at(ISO8601). 둘 다 없거나 파싱 실패 시 None.
+    외부 형식 변동에 방어적으로 격리(AD-5) — 한 hit 파싱 실패가 수집을 중단시키지 않는다.
+    """
+    ts = hit.get("created_at_i")
+    if ts is not None:
+        try:
+            return datetime.fromtimestamp(int(ts), tz=timezone.utc)
+        except (TypeError, ValueError, OSError, OverflowError):
+            pass
+    iso = hit.get("created_at")
+    if iso:
+        try:
+            # Algolia는 "...Z" 형식 → fromisoformat이 파싱하도록 +00:00로 치환.
+            dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            pass
+    return None
 
 
 class HackerNewsCollector(BaseCollector):
@@ -75,6 +108,8 @@ class HackerNewsCollector(BaseCollector):
                         title=title,
                         url=link,
                         source_type="hn",
+                        published_at=_hit_published_at(hit),
+                        popularity=_hit_popularity(hit),
                     )
                 )
         # 모든 쿼리가 실패하고 하나도 못 모았으면 소스 실패로 표면화 — aggregator가

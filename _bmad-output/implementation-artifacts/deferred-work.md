@@ -1,5 +1,11 @@
 # Deferred Work Log
 
+## Deferred from: code review of 6-4-recommender-v2 (2026-07-29)
+
+- `_clamp` 상한(1.0)이 도달 불가능한 dead 분기 — 랭킹 가중치 합=1.0(0.70+0.15+0.10+0.05)이고 blended·recency·pop·auth 모두 ≤1이라 combined는 수학적으로 항상 ≤1.0. 상한 clamp는 실행되지 않으며, `test_score_signals_clamped_to_one`(test_recommender_pipeline.py:530)은 이름과 달리 상한 경로를 검증하지 못함(실제로는 하한 0.1만 유효). 불변식 자체는 안전하나 테스트 명명/커버리지 개선 필요 (`api/pipeline/recommender.py:41-43`). 6.5에서 가중치 튜닝 시 합이 1.0을 넘게 되면 상한이 실제 활성화되므로 그때 테스트 재정비.
+- signal↔memory 임베딩 텍스트 대칭이 파일 간 암묵 계약 — AC4의 "대칭화"는 `_signal_embed_text`(summary 중심, recommender.py:242-249)와 `memory_manager`의 summary-only 임베딩(memory_manager.py:73)이 같은 표현 공간일 때만 성립. 현재는 정합하나, 어느 한쪽이 임베딩 텍스트 구성을 바꿔도 컴파일·테스트가 깨지지 않아 무경고로 어긋날 수 있음. 공유 헬퍼 추출 또는 대칭 계약 테스트 도입 검토(향후 `pipeline/vector_utils.py` 추출 시 함께).
+- `_recency_norm`이 date-only `brief_date`("2026-07-24")를 자정(UTC)으로 해석 — 같은 날 오후 게시 시그널은 `age_days<0`→recency 1.0(미래 캡)으로 뭉개져 당일 내 최신성 변별력 소실 (`api/pipeline/recommender.py:76-88`). recency weight 0.15라 영향 경미하고 "최신 우대"라 일부 의도적. 6.5 랭킹 튜닝 시 기준 시각을 그날 끝/now로 잡을지 함께 검토.
+
 ## Deferred from: code review of 5-2-history-memory-timeline (2026-07-28)
 
 - Chain 상세가 `signalId`만으로 "최신 completed review→최신 decision"을 재조회 — 한 signal에 완료 review/decision이 복수면 리스트에서 탭한 항목과 다른 체인이 표시됨 (`web/src/components/history/history-content.tsx:75`, `web/src/app/(app)/history/chain/[signalId]/page.tsx:29-53`, Flutter 동일 구조). `api/routers/reviews.py:50-63` 멱등성 가드가 pending/processing만 재사용하고 `completed`는 막지 않아 on-demand 재-리뷰(Story 3.2)+재결정 시 도달 가능. 스펙 설계 귀결(AC-4 라우트 `/history/chain/:signalId` + Task 8.1 "최신 해석")이며 올바른 수정은 리스트 탭이 decisionId(또는 reviewId)를 딥링크로 전달하고 상세가 그 결정 기준으로 review/outcome을 역산하도록 웹 라우트·Flutter 중첩 라우트·양쪽 provider를 함께 바꾸는 스펙 계약 확장 → 재-리뷰 흐름 활성화 전 별도 스토리로. "충실한 결정 기록" 신뢰성에 직결되므로 우선순위 있게 검토.
@@ -242,3 +248,37 @@
 - **[PROCESS] 리뷰가 json 버그로 'failed' 상태였음** — 파이프라인의 Reviewer가 openai json_object 버그(위 섹션)로 전부 실패해 리뷰 상세가 비어 있었음. json 수정 후 재생성하니 13섹션 리뷰 정상. 실API 회귀 테스트 부재가 근본 원인(모킹만 존재).
 - **[OBSERVATION] 홈이 일시적 brief 조회 에러에서 자동 회복 안 함** — 온디맨드 삭제/재생성 순간 등에 provider가 error(_buildFailed)로 빠지면 재조회를 안 해 stale "생성하지 못했습니다" 표시. 앱 재시작으로만 복구됨. pull-to-refresh 또는 error 상태 자동 retry 권장.
 - **[NOTE] 접근성 Semantics 라벨 실동작 확인** — uiautomator 트리에 5.4의 content-desc 라벨('AI가 확인하지 못한 정보', 섹션 헤더, '전송' 등)이 정상 노출됨(TalkBack 대응 근거). 긍정 확인.
+
+## Deferred from: code review of story-6.1 (2026-07-29)
+
+- **`derive_tech` 부분문자열 오탐** (`api/pipeline/collector/rss.py:30-36`): `"RAG"`가 "storage", `"Agent"`가 "management"에 매치되는 등 substring 매칭으로 technology_name 오분류. 6.2 의미 클러스터링이 휴리스틱을 근본 대체 예정이며 스토리가 과설계 금지를 명시 → 6.2 스코프.
+- **dedup 정규화 미흡** (`api/pipeline/collector/aggregator.py:72-87`): 정규화 제목 OR 정확 URL 기준이라 (a) 우연히 동일 제목인 별개 기사 누락 가능, (b) URL 변형(끝슬래시/대소문자/쿼리스트링) 미정규화로 실제 중복 놓침. 스펙이 exact dedup을 명시하므로 6.1은 유지, canonicalization은 6.2/6.3에서.
+- **응답 크기 상한 없음** (`api/pipeline/collector/rss.py:57`, `hackernews.py:46`): 대용량/악성 피드가 `r.content` 전체를 메모리에 로드. 소스가 코드 상수인 현재는 저위험. 소스 DB화(6.3) 시 content-length/size 캡 추가.
+- **`follow_redirects=True` + 호스트 검증 없음** (`api/pipeline/collector/aggregator.py:31`): 리다이렉트를 무조건 추종. 현재 소스는 신뢰 가능한 코드 상수라 저위험이나 6.3에서 DB 소스 도입 시 SSRF 표면이 됨 → 최종 URL scheme/host 검증 추가.
+- **알 수 없는 source kind가 배치 전체 중단** (`api/pipeline/collector/registry.py:61`, `aggregator.py:35`): `build_collectors`가 per-source try/except 밖에서 실행돼 `_build_one`의 ValueError가 격리되지 않고 전체 수집을 중단(AD-5 소스 격리 취지와 상충). 현재 SOURCES는 검증된 상수라 비도달. 레지스트리 DB화(6.3) 시 kind 검증/스킵+로깅.
+- **HN 전체 상한이 쿼리 간 중복으로 소진** (`api/pipeline/collector/hackernews.py:41-53`): 겹치는 키워드("LLM"/"RAG"/"Anthropic Claude")가 같은 스토리를 반환해 `_MAX_HN=10` 예산을 먼저 소진, 후순위 쿼리가 굶음(dedup은 이후 단계). 6.2 클러스터링과 함께 튜닝.
+- **AC1 `content` 필드 미충전** (`api/pipeline/collector/rss.py:67`, `hackernews.py:59`): AC1 반환 튜플에 `content`가 있으나 어떤 어댑터도 채우지 않음(RSS는 `entry.summary`가 있어도 버림). `content`를 실제 소비하는 건 6.3 normalize v2 → 스키마 확정 전 선채우기는 scope creep이라 6.3에서 함께 처리. (models.py 기본값 `content=""`라 현재 무해)
+
+## Deferred from: code review of story-6.2 (2026-07-29)
+
+- **N+1 순차 임베딩 호출** (`api/pipeline/clustering.py:96-107`): `_embed_articles`가 기사 1건당 `embed_text` 1회(+앵커 1회) = 배치당 N+1 순차 HTTP 호출. `LLMProvider`에 배치 임베딩 메서드가 없어 6.2 범위 밖. 현재 볼륨(수십 건) 무해하나 볼륨 증가 시 배치/동시성 도입.
+- **임베딩/LLM 호출 타임아웃 미설정** (`api/pipeline/clustering.py:98`): 새 임베딩 호출에 `collector_timeout_seconds`가 적용되지 않음(그 설정은 HTTP 수집기 전용). 단 이는 모든 기존 LLM 호출(signal_builder/reviewer/recommender)에 공통인 선재 이슈 → LLM provider 레벨에서 일괄 처리.
+- **동일 url 중복 기사 → signal_sources 중복 행** (`api/pipeline/normalizer.py:74-83`): normalizer가 url 기준 dedup을 하지 않아 같은 url이 한 클러스터에 들어오면 중복 source 행 생성. 수집기 단계 dedup에 의존하는 선재 동작.
+- **생존 기사 similarity 미로깅** (`api/pipeline/clustering.py:119-133`): off_domain으로 제외된 기사만 `similarity`를 로깅하고 통과 기사는 점수를 남기지 않음. 임계치 튜닝(튜닝 대상 명시) 시 near-miss 데이터가 없어 관측성 부족 → 통과 기사 점수도 로깅.
+- **테스트가 합성 3D 벡터만 사용** (`api/tests/test_clustering.py`): 코사인 산술은 검증하나 실제 1536D `text-embedding-3-small` 분포에서 0.82/0.20 임계치가 타당한지, anchor=None 폴백/영벡터 passthrough 경로는 미검증. 실측 기반 검증은 6.5(측정) 이후.
+- **`_embed_text`가 content 무시** (`api/pipeline/clustering.py:47-49`): 임베딩 텍스트가 `technology_name + title`만 사용. 6.3에서 `content`를 채우기 시작하면 클러스터링 품질이 조용히 저하됨(어서션/TODO 없음) → 6.3에서 임베딩 입력 재검토.
+
+## Deferred from: code review of story-6.3 (2026-07-29)
+
+- **HN `created_at_i` sanity 상한 없음** (`api/pipeline/collector/hackernews.py:34-54`): Algolia가 초 대신 밀리초(13자리)나 이상치를 반환하면 `datetime.fromtimestamp`가 먼 미래 시각으로 파싱되어 `_aggregate_metadata`의 `max(published_at)`을 오염시켜 클러스터 최신성 랭킹을 왜곡. 현재 형식(초)에선 미도달이나 외부 형식 변동 대비 상한(예: now+slack 초과 거부) 추가 권장.
+- **`uq_signals_cluster_date` 비-CONCURRENT 인덱스** (`supabase/migrations/20260731000000_signals_schema_v2.sql:34-36`): 부분 UNIQUE 인덱스를 CONCURRENTLY 없이 생성 → signals 테이블이 커지면 빌드 동안 쓰기 잠금. MVP 소규모에선 무해. 데이터 증가 후 `CREATE UNIQUE INDEX CONCURRENTLY`로 재적용 검토.
+
+## Deferred from: code review of story-6.5 (2026-07-29)
+
+- **`_recency_norm`이 `brief_date`를 "현재"로 사용** (`api/pipeline/recommender.py:103-117`): 과거 `brief_date`로 재생성 시 recency가 그 과거 날짜 기준으로 재계산되어 저장 `relevance_score`가 원래 실행과 달라짐(비재현). 평가 하네스는 `relevance_score`를 안정 관측값으로 취급 → 6.4 코드·6.5 스코프 밖(6.4 deferred 튜닝 항목과 연계).
+- **`log_engagement_bulk` all-or-nothing** (`api/pipeline/engagement.py:62-82`): 한 번의 배치 insert라 시그널 하나의 FK 위반이 그 brief의 impression 전체를 유실시켜 다운스트림 open/decision이 'unknown' 버킷으로 감. 스토리가 "부분 성공/재시도 안 함(격리 우선, AD-5)"을 명시 선택 → by-design. 향후 측정 완결성 필요 시 per-row fallback 검토.
+- **`variant` 어휘 3중 중복** (`api/pipeline/recommender.py:363,406` / `engagement_events.sql:34` / `eval_engagement.py`): migration CHECK·recommender·eval이 `'rag'`/`'coldstart'` 문자열을 각자 보유(단일 소스 없음). 향후 오타(`cold_start`)가 Python은 통과·DB CHECK는 거부해 bulk insert 전체 실패·평가는 'unknown' 무음 처리 → 공용 상수/Enum화 권장.
+- **`POST /engagement` 배치 크기 상한 없음** (`api/routers/engagement.py:36-71`): `events` 배열 크기 제한이 없어 한 요청이 수천 건 개별 insert를 유발 가능. 인증+best-effort라 위험 낮음. 하드닝으로 MAX_BATCH(예: 100) 캡 추가 권장.
+- **`NEXT_PUBLIC_FASTAPI_URL` 미설정 시 localhost 폴백** (`web/src/lib/engagement.ts:36-37`): prod 빌드에서 env 미설정 시 engagement를 `localhost:8000`로 전송해 조용히 유실. reviews/decisions 등 앱 전역이 동일 패턴 → 앱 차원 env 검증(빌드 타임 assert)로 일괄 처리 권장.
+- **`load_outcomes_enriched` 전체 테이블 스캔 + 무음 lineage 드롭** (`api/scripts/eval_engagement.py:183-206`): outcomes/decisions/reviews/projects를 전량 메모리 로드하고, decision→review→project 체인이 끊긴 outcome은 `signal_id/user_id=None`으로 'unknown' 버킷에 무음 편입(경고 없음). dev/ops 도구·소규모라 현재 무해. 스케일 시 필터/데이터품질 경고 추가.
+- **`/engagement` 엔드포인트가 `log_engagement` 헬퍼 미재사용** (`api/routers/engagement.py:55-69`): Task 4가 명시한 `log_engagement` 재사용 대신 insert+try/except+`pipeline_log`를 인라인 중복 구현. 기능·AD-12 경고는 동일 → DRY 리팩터(공용 헬퍼 경유)만 남음.

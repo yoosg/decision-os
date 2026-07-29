@@ -14,6 +14,7 @@ from routers.chat import router as chat_router
 from routers.daily_briefs import router as daily_briefs_router
 from routers.decisions import router as decisions_router
 from routers.devices import router as devices_router
+from routers.engagement import router as engagement_router
 from routers.health import router as health_router
 from routers.learning_paths import router as learning_paths_router
 from routers.onboarding import router as onboarding_router
@@ -132,3 +133,4 @@ app.include_router(decisions_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(learning_paths_router, prefix="/api/v1")
 app.include_router(outcomes_router, prefix="/api/v1")
+app.include_router(engagement_router, prefix="/api/v1")

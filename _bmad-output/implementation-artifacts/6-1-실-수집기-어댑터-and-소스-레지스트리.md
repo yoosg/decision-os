@@ -4,7 +4,7 @@ baseline_commit: NO_VCS
 
 # Story 6.1: 실 수집기 어댑터 & 소스 레지스트리
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -198,3 +198,34 @@ claude-opus-4-8 (Claude Opus 4.8) — BMad dev-story workflow
 ## Change Log
 
 - 2026-07-29: Story 6.1 구현 완료 — StubCollector를 실 수집기(RSS/HN/GitHub) + 소스 레지스트리 + 격리 + exact dedup으로 대체, orchestrator `collector_mode` 분기 배선. 신규 6파일 + 수정 6파일, 신규 테스트 16건, 전체 회귀 179 passed. Status → review. (claude-opus-4-8)
+
+## Review Findings (Code Review 2026-07-29)
+
+3개 병렬 리뷰 레이어(Blind Hunter / Edge Case Hunter / Acceptance Auditor) 결과를 소스 재확인 후 triage. AC1~AC4 및 스코프 가드는 모두 충족(회귀 179 passed). 아래는 재판정된 잔여 항목.
+
+### Decision-needed (resolved 2026-07-29)
+
+- 결정1 (`content` 필드): **defer** — 6.3 normalize v2가 소비하는 필드라 스키마 확정 전 선채우기는 scope creep. (아래 Deferred 참조)
+- 결정2 (HN 쿼리별 격리): **patch로 승격** — 한 쿼리 일시 실패로 HN 전체 손실 방지. (아래 Patch 참조)
+
+### Patch
+
+- [x] [Review][Patch] 손상된 피드(`feedparser` bozo)가 "정상·0건"으로 위장 — bozo+엔트리0이면 `ValueError`를 던져 aggregator가 `source_failed`로 관측 [api/pipeline/collector/rss.py:63-71] ✅ 적용
+- [x] [Review][Patch] `collector_mode` → `Literal["real","stub"]`로 강제, 오타 시 로드 시점 검증 실패 [api/core/config.py:18] ✅ 적용
+- [x] [Review][Patch] HN 폴백 URL `item?id=None` 방지 — url·objectID 둘 다 없으면 스킵 가드 [api/pipeline/collector/hackernews.py:63-68] ✅ 적용
+- [x] [Review][Patch] HN 쿼리별 격리 — try/except로 개별 쿼리 실패 격리(부분 성공 허용), 전량 실패 시에만 소스 실패로 표면화 [api/pipeline/collector/hackernews.py:41-79] ✅ 적용
+
+**Patch 검증:** `cd api && pytest -q` → **179 passed** (회귀 무회귀 유지).
+
+### Deferred (real, 향후 스코프)
+
+- [x] [Review][Defer] `derive_tech` 부분문자열 매칭 오탐(`"RAG"`⊂"storage", `"Agent"`⊂"management") — 6.2 의미 클러스터링이 휴리스틱 대체 예정, 스토리가 과설계 금지 명시 [api/pipeline/collector/rss.py:30-36] — deferred, 6.2 스코프
+- [x] [Review][Defer] dedup가 정규화 제목 OR 정확 URL 기준 — 우연히 동일 제목인 별개 기사 누락 가능 + URL 변형(끝슬래시/대소문자/쿼리) 미정규화. 스펙이 exact dedup을 명시하므로 6.1은 유지, 정규화는 6.2/6.3에서 [api/pipeline/collector/aggregator.py:72-87] — deferred, exact-dedup 스펙 준수
+- [x] [Review][Defer] 응답 크기 상한 없음 — 대용량/악성 피드가 `r.content` 전체를 메모리에 로드. 소스가 DB 구동되는 6.3에서 캡 추가 [api/pipeline/collector/rss.py:57] — deferred, 6.3 스코프
+- [x] [Review][Defer] `follow_redirects=True` + 호스트 검증 없음 — 소스가 코드 상수인 현재는 저위험이나 6.3에서 DB 소스 도입 시 SSRF 표면 [api/pipeline/collector/aggregator.py:31] — deferred, 6.3 스코프
+- [x] [Review][Defer] 알 수 없는 source `kind`가 배치 전체 중단 — `build_collectors`가 per-source try/except 밖에서 실행돼 `_build_one` ValueError가 격리 안 됨(AD-5 취지와 상충). 레지스트리 DB화(6.3) 시 검증/스킵 [api/pipeline/collector/registry.py:61] — deferred, 6.3 스코프
+- [x] [Review][Defer] HN 전체 상한(`_MAX_HN=10`)이 쿼리 간 중복으로 소진 — 겹치는 키워드가 예산을 먹어 후순위 쿼리가 굶음. 클러스터링(6.2)과 함께 튜닝 [api/pipeline/collector/hackernews.py:41-53] — deferred, 6.2 튜닝
+- [x] [Review][Defer] AC1 튜플의 `content` 필드를 어떤 어댑터도 채우지 않음(RSS `entry.summary` 버려짐) [api/pipeline/collector/rss.py:67] — deferred, 6.3 normalize v2가 소비하는 필드라 스키마 확정 전 선채우기는 scope creep
+
+### Dismissed (14): 재판정 후 노이즈/오탐/스펙준수/기존이슈로 기각
+`brief_date` 파싱(orchestrator:30, 기존코드·비도달) · Atom 상대링크(6.1 다운스트림 페치 없음) · 0건 경고(dedup_done total=0로 이미 관측·AC4 충족) · gzip/charset(httpx 자동처리) · 빈 queries(오설정) · 빈 github repo(격리+로깅됨) · timeout<=0(오설정·기본10) · github 매직넘버5(nit) · `brief_date=""` 기본(orchestrator가 항상 전달) · 에러로그 URL조각(공개 피드URL·비밀없음) · objectID 미이스케이프(숫자·Patch로 커버) · certifi 정확핀(스토리 의도) · pydantic `class Config`(기존·동작함) · 재시도 없음(배치 허용).

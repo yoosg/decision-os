@@ -12,6 +12,7 @@ TEST_OTHER_USER_ID = "660e8400-e29b-41d4-a716-446655440001"
 TEST_REVIEW_ID = "rev-abc-111"
 TEST_PROJECT_ID = "proj-xyz-222"
 TEST_DECISION_ID = "dec-ghi-333"
+TEST_SIGNAL_ID = "sig-jkl-444"
 
 
 def _make_token(user_id: str = TEST_USER_ID) -> str:
@@ -398,3 +399,100 @@ def test_patch_invalid_queue_timing_value_returns_422(monkeypatch):
             )
 
     assert response.status_code == 422
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Story 6.5 — decision engagement 이벤트 서버 로깅 (신규 insert 시 1회, 멱등 0회, 실패 무영향)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _mock_with_signal(decisions_first_call_data, decisions_insert_data=None):
+    """reviews SELECT가 signal_id를 포함하는 decisions 라우터용 Mock(6.5 engagement 로깅 경로)."""
+    mock_client = MagicMock()
+
+    def table_side_effect(table_name: str) -> MagicMock:
+        c = MagicMock()
+        if table_name == "reviews":
+            ch = _chain()
+            ch.execute.return_value.data = [
+                {"id": TEST_REVIEW_ID, "project_id": TEST_PROJECT_ID, "signal_id": TEST_SIGNAL_ID}
+            ]
+            c.select.return_value = ch
+        elif table_name == "projects":
+            ch = _chain()
+            ch.execute.return_value.data = [{"id": TEST_PROJECT_ID}]
+            c.select.return_value = ch
+        elif table_name == "decisions":
+            select_ch = _chain()
+            select_ch.execute.return_value.data = decisions_first_call_data
+            insert_ch = _chain()
+            insert_ch.execute.return_value.data = decisions_insert_data or [{"id": TEST_DECISION_ID}]
+            c.select.return_value = select_ch
+            c.insert.return_value = insert_ch
+        return c
+
+    mock_client.table.side_effect = table_side_effect
+    return mock_client
+
+
+def test_new_decision_logs_engagement_event_once(monkeypatch):
+    """신규 decision insert 성공 → decision engagement 1회 로깅(signal_id·choice 포함)."""
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+
+    mock_client = _mock_with_signal(decisions_first_call_data=[])
+    with patch("routers.decisions.get_supabase", return_value=mock_client), \
+         patch("routers.decisions.log_engagement") as mock_log:
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/decisions",
+                json={"review_id": TEST_REVIEW_ID, "choice": "learn_now"},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 201
+    mock_log.assert_called_once()
+    args, kwargs = mock_log.call_args
+    # log_engagement(client, user_id, signal_id, "decision", metadata=...)
+    assert args[2] == TEST_SIGNAL_ID
+    assert args[3] == "decision"
+    assert kwargs["metadata"]["choice"] == "learn_now"
+
+
+def test_idempotent_decision_does_not_log_engagement(monkeypatch):
+    """멱등 재요청(기존 decision 반환) → engagement 로깅 0회(중복 카운트 방지)."""
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+
+    mock_client = _mock_with_signal(decisions_first_call_data=[{"id": "existing-decision"}])
+    with patch("routers.decisions.get_supabase", return_value=mock_client), \
+         patch("routers.decisions.log_engagement") as mock_log:
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/decisions",
+                json={"review_id": TEST_REVIEW_ID, "choice": "learn_now"},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 201  # 라우터 데코레이터가 201 고정(멱등도 기존 decision 반환)
+    mock_log.assert_not_called()
+
+
+def test_decision_engagement_log_failure_does_not_block_201(monkeypatch):
+    """engagement 로깅이 예외를 던져도 decision 응답(201)은 막히지 않는다(AD-5)."""
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+
+    mock_client = _mock_with_signal(decisions_first_call_data=[])
+    with patch("routers.decisions.get_supabase", return_value=mock_client), \
+         patch("routers.decisions.log_engagement", side_effect=RuntimeError("log boom")):
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/decisions",
+                json={"review_id": TEST_REVIEW_ID, "choice": "learn_now"},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 201

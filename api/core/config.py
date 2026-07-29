@@ -1,7 +1,7 @@
 import warnings
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -19,6 +19,23 @@ class Settings(BaseSettings):
     collector_mode: Literal["real", "stub"] = "real"
     # 외부 HTTP 요청 타임아웃(초). 스파이크에서 확인된 타임아웃 이슈 대응.
     collector_timeout_seconds: float = 10.0
+    # Story 6.2: 의미 클러스터링 & 관련성/세이프티 필터
+    # clustering_enabled: 안전 롤아웃/긴급 차단 토글(끄면 6.1 그대로 pass-through)
+    clustering_enabled: bool = True
+    # cluster_similarity_threshold: 코사인 유사도 클러스터 병합 임계치(초기값, 튜닝 대상)
+    cluster_similarity_threshold: float = 0.82
+    # relevance_min_similarity: 도메인 앵커 유사도 하한(미만이면 off_domain으로 제외)
+    relevance_min_similarity: float = 0.20
+
+    @field_validator("cluster_similarity_threshold", "relevance_min_similarity")
+    @classmethod
+    def _check_similarity_bounds(cls, v: float, info) -> float:
+        # 코사인 유사도는 [-1, 1] 범위. 오설정(예: 82 → 8200%)이 조용히 통과하지 않도록 검증.
+        if not -1.0 <= v <= 1.0:
+            raise ValueError(
+                f"{info.field_name} must be within [-1, 1] (cosine similarity range), got {v}"
+            )
+        return v
 
     @model_validator(mode="after")
     def check_required_settings(self) -> "Settings":

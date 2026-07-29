@@ -2,6 +2,7 @@
 
 Supabase / Firebase Mock으로 실행 가능 — 환경변수 불필요.
 """
+import math
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -9,13 +10,33 @@ import pytest
 from pipeline.fcm import run_daily_brief_push_job, send_daily_brief_push
 from pipeline.recommender import (
     _RAG_WEIGHT,
+    _W_RECENCY,
+    _W_RELEVANCE,
+    _authority_norm,
     _embed_signal_list,
+    _mmr_rerank,
+    _popularity_norm,
+    _recency_norm,
     _score_signals,
+    _signal_embed_text,
     compute_relevance_score,
+    compute_relevance_score_v2,
     create_daily_brief_for_user,
     mark_stuck_jobs,
     run_recommender,
 )
+
+# v2 랭킹 피처: metadata 없는 시그널(published_at/popularity/source_authority = None)의
+# 중립 결합값 헬퍼 — combined = _W_RELEVANCE*blended + _W_RECENCY*0.5 (pop=0, auth=0).
+def _combine_neutral(blended: float) -> float:
+    return _W_RELEVANCE * blended + _W_RECENCY * 0.5
+
+
+# Story 6.5: _score_signals가 (ordered, variant) 튜플을 반환하도록 확장됐다.
+# 순서(ordered)만 검증하는 기존 테스트는 이 래퍼로 ordered만 받는다(variant는 별도 테스트).
+def _order(*args, **kwargs):
+    ordered, _variant = _score_signals(*args, **kwargs)
+    return ordered
 
 
 # ─── compute_relevance_score ──────────────────────────────────────────────────
@@ -541,55 +562,60 @@ def test_embed_signal_list_skips_empty_text():
 # ── _score_signals: RAG 경로 / 콜드 스타트 폴백 / 예외 폴백 / user_id 격리 ──
 
 def test_score_signals_no_llm_is_coldstart():
-    """llm 미주입 → 콜드 스타트, RPC 미호출 (AC-A2)."""
+    """llm 미주입 → substring 콜드 스타트 폴백(D1) + 랭킹 피처 결합, RPC 미호출 (AC-A2, AC6)."""
     profile = {"tech_stack": ["LangGraph"], "interests": []}
     client = MagicMock()
-    scored = _score_signals([_SIG], profile, "u", client, "d", None, None)
-    assert scored[0][1] == compute_relevance_score(_SIG, profile)
+    scored = _order([_SIG], profile, "u", client, "d", None, None)
+    # v2: base=substring 폴백, combined = 0.7*base + 0.15*0.5(중립 recency)
+    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
     client.rpc.assert_not_called()
 
 
 def test_score_signals_coldstart_when_no_memories():
-    """memory 미보유 사용자 → 콜드 스타트 폴백, RPC 미호출 (AC-A2)."""
+    """memory 미보유 → 콜드 스타트(RAG 블렌드 없음) + 랭킹 피처, RPC 미호출 (AC-A2)."""
     profile = {"tech_stack": ["LangGraph"], "interests": []}
     client = _rag_score_client(memory_count=0)
-    scored = _score_signals([_SIG], profile, "u", client, "d", MagicMock(), _EMB)
-    assert scored[0][1] == compute_relevance_score(_SIG, profile)
+    # MagicMock llm은 embed_text 미설정 → 프로필 임베딩 norm 0 → base=substring 폴백(AD-5)
+    scored = _order([_SIG], profile, "u", client, "d", MagicMock(), _EMB)
+    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
     client.rpc.assert_not_called()
 
 
 def test_score_signals_rag_boosts_over_coldstart():
-    """memory 보유 → base + _RAG_WEIGHT*top_similarity (AC-A1)."""
-    profile = {}  # base = 0.1
+    """memory 보유 → (base + _RAG_WEIGHT*top_sim) 블렌드 후 랭킹 피처 결합 (AC-A1, AC5)."""
+    profile = {}  # base = 0.1 (빈 프로필 → substring 0.1)
     client = _rag_score_client(memory_count=2, similarity=0.8)
-    scored = _score_signals([_SIG], profile, "u", client, "d", MagicMock(), _EMB)
-    assert scored[0][1] == pytest.approx(0.1 + _RAG_WEIGHT * 0.8)
+    scored = _order([_SIG], profile, "u", client, "d", MagicMock(), _EMB)
+    blended = 0.1 + _RAG_WEIGHT * 0.8  # 0.5
+    assert scored[0][1] == pytest.approx(_combine_neutral(blended))
     client.rpc.assert_called_once()
 
 
 def test_score_signals_clamped_to_one():
-    """블렌딩 결과가 상한 1.0을 넘지 않음 (relevance_score 불변식, AC-A3)."""
+    """블렌딩(base+RAG)이 상한 1.0으로 clamp되고 최종 combined도 [0.1,1.0] 유지 (불변식, AC-A3)."""
     sig = {"id": "sig-1", "technology_name": "langgraph mcp agent rag",
            "title": "t", "summary": "langgraph mcp agent rag"}
     profile = {"tech_stack": ["langgraph", "mcp", "agent", "rag"],
-               "interests": ["langgraph", "mcp", "agent"]}  # base = 1.0
+               "interests": ["langgraph", "mcp", "agent"]}  # substring base = 1.0
     client = _rag_score_client(memory_count=1, similarity=0.9)
-    scored = _score_signals([sig], profile, "u", client, "d", MagicMock(), {"sig-1": [0.01] * 1536})
-    assert scored[0][1] == 1.0
+    scored = _order([sig], profile, "u", client, "d", MagicMock(), {"sig-1": [0.01] * 1536})
+    # blended = clamp(1.0 + 0.5*0.9) = 1.0 → combined = 0.7*1.0 + 0.075 = 0.775
+    assert scored[0][1] == pytest.approx(_combine_neutral(1.0))
+    assert 0.1 <= scored[0][1] <= 1.0  # 불변식
 
 
 def test_score_signals_rpc_error_falls_back_to_base():
-    """match_memories RPC 예외 → 해당 Signal 콜드 스타트 점수로 폴백 (AC-A2, AD-5)."""
+    """match_memories RPC 예외 → 해당 Signal base로 폴백 후 랭킹 피처 결합 (AC-A2, AD-5)."""
     client = _rag_score_client(memory_count=1, rpc_error=True)
-    scored = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
-    assert scored[0][1] == 0.1  # base
+    scored = _order([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
+    assert scored[0][1] == pytest.approx(_combine_neutral(0.1))  # base=0.1 폴백
 
 
 def test_score_signals_missing_embedding_uses_base():
     """임베딩 누락 Signal(임베딩 실패분) → base 점수, RPC 미호출."""
     client = _rag_score_client(memory_count=1, similarity=0.9)
-    scored = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), {})  # 임베딩 없음
-    assert scored[0][1] == 0.1
+    scored = _order([_SIG], {}, "u", client, "d", MagicMock(), {})  # 임베딩 없음
+    assert scored[0][1] == pytest.approx(_combine_neutral(0.1))
     client.rpc.assert_not_called()
 
 
@@ -608,7 +634,7 @@ def test_score_signals_deterministic_order():
         {"id": "sig-b", "technology_name": "X", "title": "t", "summary": "s"},
         {"id": "sig-a", "technology_name": "X", "title": "t", "summary": "s"},
     ]
-    scored = _score_signals(sigs, {}, "u", MagicMock(), "d", None, None)
+    scored = _order(sigs, {}, "u", MagicMock(), "d", None, None)
     assert [s[0] for s in scored] == ["sig-a", "sig-b"]  # 동점 0.1 → id 오름차순
 
 
@@ -622,7 +648,8 @@ def test_brief_uses_rag_score_when_memories_exist():
     )
     assert brief_id == "brief-uuid"
     inserted = client._daily_brief_signals.insert.call_args[0][0]
-    assert inserted[0]["relevance_score"] == pytest.approx(0.1 + _RAG_WEIGHT * 0.8)
+    # v2: RAG 블렌드(0.1 + 0.5*0.8=0.5) 후 랭킹 피처 결합
+    assert inserted[0]["relevance_score"] == pytest.approx(_combine_neutral(0.1 + _RAG_WEIGHT * 0.8))
 
 
 def test_brief_creation_continues_when_rpc_fails():
@@ -633,7 +660,7 @@ def test_brief_creation_continues_when_rpc_fails():
     )
     assert brief_id == "brief-uuid"  # 생성 지속
     inserted = client._daily_brief_signals.insert.call_args[0][0]
-    assert inserted[0]["relevance_score"] == 0.1  # base 폴백
+    assert inserted[0]["relevance_score"] == pytest.approx(_combine_neutral(0.1))  # base 폴백
 
 
 def test_run_recommender_embeds_signals_once_for_batch():
@@ -655,3 +682,305 @@ def test_run_recommender_embeds_signals_once_for_batch():
     # 각 사용자 create 호출에 동일 signal_embeddings dict 재사용
     for c in mock_create.call_args_list:
         assert c[0][5] == {"sig-1": [0.01] * 1536}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Story 6.4 — Recommender v2: 코사인 콜드 스타트 + 랭킹 피처 + MMR + RAG 대칭
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _llm_with_embeddings(mapping, default=None):
+    """embed_text(text) -> vector 매핑 llm mock (프로필 텍스트 임베딩 제어용).
+
+    코사인 검증은 실 네트워크 없이 알려진 벡터로 결정적(오프라인 원칙). mapping에 없으면 default,
+    default도 None이면 예외(임베딩 실패 경로 검증용).
+    """
+    llm = MagicMock()
+
+    def _embed(text):
+        if text in mapping:
+            return mapping[text]
+        if default is not None:
+            return default
+        raise KeyError(f"no embedding for {text!r}")
+
+    llm.embed_text.side_effect = _embed
+    return llm
+
+
+# ── 순수 헬퍼: recency / popularity / authority / cosine / MMR ──
+
+def test_recency_norm_none_is_neutral():
+    assert _recency_norm(None, "2026-07-24") == 0.5
+
+
+def test_recency_norm_recent_higher_than_old():
+    ref = "2026-07-24"
+    recent = _recency_norm("2026-07-24T00:00:00+00:00", ref)
+    old = _recency_norm("2026-07-10T00:00:00+00:00", ref)
+    assert recent > old
+    assert recent == pytest.approx(1.0)  # age 0 → 0.5**0 = 1.0
+
+
+def test_recency_norm_future_is_capped_to_one():
+    """미래 timestamp(age<0) → 1.0 캡 (D5)."""
+    assert _recency_norm("2026-08-01T00:00:00Z", "2026-07-24") == 1.0
+
+
+def test_recency_norm_bad_input_is_neutral():
+    """파싱 실패 → 중립 0.5 (D5 방어)."""
+    assert _recency_norm("not-a-date", "2026-07-24") == 0.5
+
+
+def test_recency_norm_naive_datetime_handled():
+    """naive datetime 문자열도 UTC로 간주해 파싱(예외 없음)."""
+    assert 0.0 <= _recency_norm("2026-07-20T00:00:00", "2026-07-24") <= 1.0
+
+
+def test_popularity_norm():
+    assert _popularity_norm(0, 5.0) == 0.0          # 인기 0
+    assert _popularity_norm(100, 0.0) == 0.0        # batch_max 0
+    assert _popularity_norm(None, 5.0) == 0.0       # None
+    assert _popularity_norm(100, math.log1p(100)) == pytest.approx(1.0)  # 배치 최대
+
+
+def test_authority_norm():
+    assert _authority_norm(None) == 0.0
+    assert _authority_norm(4) == 1.0
+    assert _authority_norm(2) == 0.5
+    assert _authority_norm(8) == 1.0  # 상한 캡
+
+
+def test_compute_relevance_score_v2_cosine_bounds():
+    """동일 벡터 → 1.0, 직교 → clamp 0.1 (AC1)."""
+    assert compute_relevance_score_v2([1.0, 0.0], 1.0, [1.0, 0.0], 1.0) == 1.0
+    assert compute_relevance_score_v2([1.0, 0.0], 1.0, [0.0, 1.0], 1.0) == 0.1
+
+
+def test_mmr_rerank_deterministic_tiebreak():
+    """동점 mmr → signal_id 오름차순 (AC3 결정론)."""
+    items = [("b", 0.5, [1.0, 0.0], 1.0), ("a", 0.5, [1.0, 0.0], 1.0)]
+    order = [x[0] for x in _mmr_rerank(items, 0.7)]
+    assert order == ["a", "b"]
+
+
+# ── 콜드 스타트 코사인 순위 + go→google 오매칭 회귀 (AC1) ──
+
+def test_coldstart_cosine_ranks_semantically_near_higher():
+    """프로필과 의미 가까운(코사인↑) 시그널이 먼 시그널보다 상위 (AC1)."""
+    profile = {"tech_stack": ["go"], "interests": []}  # profile text = "go"
+    near = {"id": "near", "technology_name": "Golang", "title": "t", "summary": "s"}
+    far = {"id": "far", "technology_name": "Cooking", "title": "t", "summary": "s"}
+    embs = {"near": [1.0, 0.0], "far": [0.0, 1.0]}     # near = 프로필 방향, far = 직교
+    llm = _llm_with_embeddings({"go": [1.0, 0.0]})
+    client = _rag_score_client(memory_count=0)
+    scored = _order([far, near], profile, "u", client, "d", llm, embs)
+    assert [s[0] for s in scored][0] == "near"
+
+
+def test_coldstart_no_substring_pullup_go_google():
+    """substring이었으면 'go' in 'google' 로 끌어올려졌을 무관 시그널이 코사인에선 안 올라감 (AC1 핵심 회귀)."""
+    profile = {"tech_stack": ["go"], "interests": []}
+    google = {"id": "google", "technology_name": "Google", "title": "Google announces X", "summary": "cloud"}
+    relevant = {"id": "relevant", "technology_name": "Golang", "title": "Go 1.22", "summary": "go release"}
+    embs = {"relevant": [1.0, 0.0], "google": [0.0, 1.0]}  # google 무관(직교)
+    llm = _llm_with_embeddings({"go": [1.0, 0.0]})
+    client = _rag_score_client(memory_count=0)
+    scored = dict(_order([google, relevant], profile, "u", client, "d", llm, embs))
+    assert scored["relevant"] > scored["google"]
+    # 무관 google은 base 코사인 0 → clamp 0.1 → combined = neutral(0.1) (끌어올림 없음)
+    assert scored["google"] == pytest.approx(_combine_neutral(0.1))
+
+
+def test_v2_invariant_and_deterministic_tiebreak():
+    """모든 combined ∈ [0.1,1.0]; 동점 입력 → signal_id 오름차순 (AC1/AC3)."""
+    sigs = [
+        {"id": "sig-b", "technology_name": "X", "title": "t", "summary": "s"},
+        {"id": "sig-a", "technology_name": "X", "title": "t", "summary": "s"},
+    ]
+    embs = {"sig-a": [1.0, 0.0], "sig-b": [1.0, 0.0]}  # 동일 → 동점
+    llm = _llm_with_embeddings({}, default=[1.0, 0.0])
+    client = _rag_score_client(memory_count=0)
+    scored = _order(sigs, {"tech_stack": ["z"]}, "u", client, "d", llm, embs)
+    for _sid, sc in scored:
+        assert 0.1 <= sc <= 1.0
+    assert [s[0] for s in scored] == ["sig-a", "sig-b"]
+
+
+# ── 랭킹 피처: 최신성 · 인기 · 권위 (AC2) ──
+
+def test_ranking_recency_boosts_recent_signal():
+    """동일 base에서 최신(published_at 최근) 시그널이 상위, 오래된 것은 하위 (AC2)."""
+    recent = {"id": "recent", "technology_name": "X", "title": "t", "summary": "s",
+              "published_at": "2026-07-24T00:00:00+00:00"}
+    old = {"id": "old", "technology_name": "X", "title": "t", "summary": "s",
+           "published_at": "2026-06-24T00:00:00+00:00"}
+    embs = {"recent": [1.0, 0.0], "old": [1.0, 0.0]}
+    llm = _llm_with_embeddings({}, default=[1.0, 0.0])
+    client = _rag_score_client(memory_count=0)
+    scored = dict(_order([old, recent], {"tech_stack": ["z"]}, "u", client, "2026-07-24", llm, embs))
+    assert scored["recent"] > scored["old"]
+
+
+def test_ranking_popularity_and_authority_boost():
+    """동일 base·최신성에서 고인기·고권위 시그널이 상위, metadata 없는 건 중립 (AC2)."""
+    pop = {"id": "pop", "technology_name": "X", "title": "t", "summary": "s", "popularity": 1000}
+    auth = {"id": "auth", "technology_name": "X", "title": "t", "summary": "s", "source_authority": 4}
+    plain = {"id": "plain", "technology_name": "X", "title": "t", "summary": "s"}  # metadata 없음 → 중립
+    embs = {"pop": [1.0, 0.0], "auth": [1.0, 0.0], "plain": [1.0, 0.0]}
+    llm = _llm_with_embeddings({}, default=[1.0, 0.0])
+    client = _rag_score_client(memory_count=0)
+    scored = dict(_order([plain, pop, auth], {"tech_stack": ["z"]}, "u", client, "d", llm, embs))
+    assert scored["pop"] > scored["plain"]
+    assert scored["auth"] > scored["plain"]
+
+
+def test_published_at_none_is_neutral_not_penalized():
+    """published_at NULL 시그널은 최신성 페널티 없이 중립(recency 0.5) 처리 (AC2, AD-5)."""
+    no_date = {"id": "no_date", "technology_name": "X", "title": "t", "summary": "s"}  # published_at 없음
+    embs = {"no_date": [1.0, 0.0]}
+    llm = _llm_with_embeddings({}, default=[1.0, 0.0])
+    client = _rag_score_client(memory_count=0)
+    scored = dict(_order([no_date], {"tech_stack": ["z"]}, "u", client, "d", llm, embs))
+    # base 코사인 1.0 → combined = 0.7*1.0 + 0.15*0.5(중립) = 0.775
+    assert scored["no_date"] == pytest.approx(_combine_neutral(1.0))
+
+
+# ── MMR 다양성 (AC3) ──
+
+def test_mmr_disperses_similar_and_keeps_no_embedding_signal():
+    """유사 임베딩이 상위에 몰리지 않고 분산; 임베딩 없는 시그널은 탈락하지 않고 순서만 뒤로 (AC3, AD-5)."""
+    # profile [1,1] 기준 a,b,c(=[1,0])와 d(=[0,1])는 관련도 동일하나 서로 직교(주제 다름)
+    a = {"id": "a", "technology_name": "X", "title": "t", "summary": "s"}
+    b = {"id": "b", "technology_name": "X", "title": "t", "summary": "s"}
+    c = {"id": "c", "technology_name": "X", "title": "t", "summary": "s"}
+    d = {"id": "d", "technology_name": "Y", "title": "t", "summary": "s"}
+    e = {"id": "e", "technology_name": "NoEmb", "title": "t", "summary": "s"}  # 임베딩 없음
+    embs = {"a": [1.0, 0.0], "b": [1.0, 0.0], "c": [1.0, 0.0], "d": [0.0, 1.0]}  # e 없음
+    llm = _llm_with_embeddings({}, default=[1.0, 1.0])  # profile 벡터 [1,1]
+    client = _rag_score_client(memory_count=0)
+    scored = _order([a, b, c, d, e], {"tech_stack": ["z"]}, "u", client, "d", llm, embs)
+    order = [s[0] for s in scored]
+    # MMR: a 선택 후 b,c는 중복 페널티 → 직교인 d가 위로 분산 (2번째 안에 진입)
+    assert order.index("d") < order.index("c")
+    # 임베딩 없는 e도 탈락하지 않음
+    assert "e" in order
+    assert len(order) == 5
+
+
+# ── RAG 대칭화: _signal_embed_text summary 중심 (AC4) ──
+
+def test_signal_embed_text_is_summary_centric():
+    """AC4: summary 중심(memory 문서 임베딩과 대칭), 없으면 title 폴백, 둘 다 없으면 빈 문자열."""
+    assert _signal_embed_text({"technology_name": "X", "title": "T", "summary": "S"}) == "S"
+    assert _signal_embed_text({"technology_name": "X", "title": "T", "summary": None}) == "T"
+    assert _signal_embed_text({"technology_name": "X", "title": None, "summary": None}) == ""
+
+
+# ── AD-5: 프로필 임베딩 실패 → substring 폴백 (AC6) ──
+
+def test_profile_embed_failure_falls_back_to_substring():
+    """프로필 임베딩 실패 → 예외 없이 substring base 폴백 후 랭킹 피처 결합 (AC6, AD-5)."""
+    profile = {"tech_stack": ["LangGraph"]}
+    llm = MagicMock()
+    llm.embed_text.side_effect = RuntimeError("profile embed boom")
+    client = _rag_score_client(memory_count=0)
+    scored = _order([_SIG], profile, "u", client, "d", llm, _EMB)
+    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
+
+
+def test_rag_symmetry_uses_summary_query_and_single_embedding():
+    """AC4: memory 보유 경로에서도 시그널 임베딩(summary 기반)을 콜드 스타트·RAG query가 공유(1회 임베딩)."""
+    sig = {"id": "sig-1", "technology_name": "X", "title": "T", "summary": "vector db tuning"}
+    llm = MagicMock()
+    llm.embed_text.return_value = [1.0, 0.0]
+    # signal_embeddings=None → _score_signals가 _embed_signal_list로 1회 임베딩
+    client = _rag_score_client(memory_count=1, similarity=0.5)
+    _score_signals([sig], {}, "u", client, "d", llm, None)
+    # 시그널 임베딩 텍스트가 summary("vector db tuning")로 호출됨 (title/tech 아님)
+    embed_texts = [c.args[0] for c in llm.embed_text.call_args_list]
+    assert "vector db tuning" in embed_texts
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Story 6.5 — variant 반환 + 서버 impression 로깅 정본
+# ══════════════════════════════════════════════════════════════════════════════
+
+def test_score_signals_variant_coldstart_when_no_llm():
+    """llm 미주입 → variant='coldstart' (memory 분기 미실행)."""
+    _ordered, variant = _score_signals([_SIG], {"tech_stack": ["z"]}, "u", MagicMock(), "d", None, None)
+    assert variant == "coldstart"
+
+
+def test_score_signals_variant_coldstart_when_no_memory():
+    """memory 미보유 → variant='coldstart' (memory_rag_coldstart 경로)."""
+    client = _rag_score_client(memory_count=0)
+    _ordered, variant = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
+    assert variant == "coldstart"
+
+
+def test_score_signals_variant_rag_when_memory_applied():
+    """memory 보유 + RAG 적용 → variant='rag' (memory_rag_applied 경로와 동일 분기)."""
+    client = _rag_score_client(memory_count=2, similarity=0.8)
+    _ordered, variant = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
+    assert variant == "rag"
+
+
+def test_score_signals_variant_rag_even_if_per_signal_rpc_fails():
+    """per-signal RPC 실패(continue 폴백)여도 memory 보유 코호트이므로 variant='rag'.
+
+    pipeline_log가 이 경로에서 memory_rag_applied를 남기므로(스토리 규칙: variant는 로그와 일치),
+    variant도 rag로 유지된다. 개별 시그널 점수는 base로 폴백되지만 코호트 라벨은 rag.
+    """
+    client = _rag_score_client(memory_count=1, rpc_error=True)
+    _ordered, variant = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
+    assert variant == "rag"
+
+
+def test_score_signals_variant_coldstart_when_memory_check_raises():
+    """memory 존재 확인 쿼리 자체가 실패(outer except) → memory_rag_coldstart → variant='coldstart'."""
+    client = MagicMock()
+    # memories.select(...).eq(...).limit(...).execute() 가 예외 → outer except 진입
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.side_effect = (
+        RuntimeError("memories check boom")
+    )
+    _ordered, variant = _score_signals([_SIG], {}, "u", client, "d", MagicMock(), _EMB)
+    assert variant == "coldstart"
+
+
+def test_brief_logs_server_impressions_with_variant():
+    """create_daily_brief_for_user가 brief 시그널마다 impression 이벤트를 variant/position/score와 로깅."""
+    client = _make_brief_mock_client(memory_count=1, rpc_similarity=0.8)
+    with patch("pipeline.recommender.log_engagement_bulk") as mock_bulk:
+        brief_id = create_daily_brief_for_user(
+            "user-1", ["sig-1"], client, "2026-07-24", MagicMock(), {"sig-1": [0.01] * 1536}
+        )
+    assert brief_id == "brief-uuid"
+    mock_bulk.assert_called_once()
+    rows = mock_bulk.call_args[0][1]
+    assert rows[0]["event_type"] == "impression"
+    assert rows[0]["variant"] == "rag"  # memory 보유 → rag 코호트
+    assert rows[0]["signal_id"] == "sig-1"
+    assert rows[0]["daily_brief_id"] == "brief-uuid"
+    assert rows[0]["metadata"]["position"] == 1
+    assert "relevance_score" in rows[0]["metadata"]
+
+
+def test_brief_impressions_coldstart_variant_when_no_memory():
+    """memory 미보유 brief → impression variant='coldstart'."""
+    client = _make_brief_mock_client(memory_count=0)
+    with patch("pipeline.recommender.log_engagement_bulk") as mock_bulk:
+        create_daily_brief_for_user(
+            "user-1", ["sig-1"], client, "2026-07-24", MagicMock(), {"sig-1": [0.01] * 1536}
+        )
+    rows = mock_bulk.call_args[0][1]
+    assert rows[0]["variant"] == "coldstart"
+
+
+def test_brief_completes_when_impression_logging_raises():
+    """impression 로깅이 예외를 던져도 brief는 completed로 진행(best-effort 이중 보증, AD-5)."""
+    client = _make_brief_mock_client()
+    with patch("pipeline.recommender.log_engagement_bulk", side_effect=RuntimeError("log boom")):
+        brief_id = create_daily_brief_for_user("user-1", ["sig-1"], client, "2026-07-24")
+    assert brief_id == "brief-uuid"  # 로깅 실패에도 생성 완료
+    last_update = client._daily_briefs.update.call_args_list[-1][0][0]
+    assert last_update["status"] == "completed"
