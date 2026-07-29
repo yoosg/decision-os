@@ -34,15 +34,18 @@ export default function ChatPage({ params }: { params: Promise<{ signalId: strin
   useEffect(() => {
     const supabase = createClient();
     let cancelled = false;
-    supabase
-      .from("signals")
-      .select("title")
-      .eq("id", signalId)
-      .maybeSingle()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("signals")
+          .select("title")
+          .eq("id", signalId)
+          .maybeSingle();
         if (!cancelled && data?.title) setSignalTitle(data.title);
-      })
-      .catch(() => {});
+      } catch {
+        // 제목 조회 실패는 무시 (채팅 기능엔 영향 없음)
+      }
+    })();
     return () => {
       cancelled = true;
     };
