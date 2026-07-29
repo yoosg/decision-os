@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decision OS — Key Screen Wireframes (2026-07-21)</title>
+  <style>
+    /* ── Design Tokens ───────────────────────────────────────────── */
+    :root {
+      --bg-page:        #1A1A1A;
+      --bg-main:        #FFFFFF;
+      --bg-screen:      #F9F9F9;
+      --bg-card:        #F2F2F2;
+      --bg-card-alt:    #ECECEC;
+      --text-primary:   #0D0D0D;
+      --text-secondary: #6B7280;
+      --text-tertiary:  #9CA3AF;
+      --accent:         #0D0D0D;
+      --green:          #16A34A;
+      --border-subtle:  #E5E5E5;
+      --border-card:    #DCDCDC;
+      --radius-phone:   44px;
+      --radius-card:    16px;
+      --radius-pill:    50px;
+      --radius-badge:   100px;
+      --font:           system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+    }
+
+    /* ── Page Layout ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-page);
+      font-family: var(--font);
+      color: var(--text-primary);
+      padding: 48px 32px 80px;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .page-header p {
+      font-size: 15px;
+      color: #888;
+      line-height: 1.6;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .row-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 20px;
+      margin-top: 48px;
+      padding-left: 4px;
+    }
+
+    .phones-row {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .phone-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Phone Frame ─────────────────────────────────────────────── */
+    .phone-frame {
+      width: 390px;
+      height: 844px;
+      background: #111;
+      border-radius: var(--radius-phone);
+      box-shadow:
+        0 0 0 1px #333,
+        0 32px 80px rgba(0,0,0,0.7),
+        inset 0 0 0 1px #444;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Side buttons */
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 120px;
+      width: 3px;
+      height: 36px;
+      background: #333;
+      border-radius: 2px 0 0 2px;
+      box-shadow: 0 52px 0 #333, 0 96px 0 #333;
+      z-index: 10;
+    }
+    .phone-frame::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 160px;
+      width: 3px;
+      height: 64px;
+      background: #333;
+      border-radius: 0 2px 2px 0;
+      z-index: 10;
+    }
+
+    .phone-screen {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-screen);
+      border-radius: var(--radius-phone);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Status Bar ──────────────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px 4px;
+      background: var(--bg-main);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 5;
+    }
+    .status-bar .time {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+    .status-bar .icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-bar .icons svg {
+      width: 16px; height: 16px;
+      fill: var(--text-primary);
+    }
+    .signal-bars {
+      display: flex; align-items: flex-end; gap: 2px; height: 12px;
+    }
+    .signal-bars span {
+      width: 3px;
+      background: var(--text-primary);
+      border-radius: 1px;
+    }
+    .signal-bars span:nth-child(1) { height: 4px; }
+    .signal-bars span:nth-child(2) { height: 7px; }
+    .signal-bars span:nth-child(3) { height: 10px; }
+    .signal-bars span:nth-child(4) { height: 12px; }
+
+    .wifi-icon {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+    .battery {
+      display: flex; align-items: center; gap: 2px;
+    }
+    .battery-body {
+      width: 22px; height: 12px;
+      border: 1.5px solid var(--text-primary);
+      border-radius: 3px;
+      position: relative;
+      padding: 2px;
+    }
+    .battery-body::after {
+      content: '';
+      position: absolute;
+      right: -4px; top: 50%; transform: translateY(-50%);
+      width: 2px; height: 6px;
+      background: var(--text-primary);
+      border-radius: 0 1px 1px 0;
+    }
+    .battery-fill {
+      height: 100%;
+      width: 75%;
+      background: var(--text-primary);
+      border-radius: 1px;
+    }
+
+    /* ── Dynamic Island ──────────────────────────────────────────── */
+    .dynamic-island {
+      width: 120px; height: 34px;
+      background: #000;
+      border-radius: 20px;
+      margin: 0 auto 0;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 6;
+      top: -2px;
+    }
+
+    /* ── Scrollable Content ──────────────────────────────────────── */
+    .screen-content {
+      flex: 1;
+      overflow: hidden;
+      background: var(--bg-screen);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Bottom Navigation ───────────────────────────────────────── */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: var(--bg-main);
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 8px 20px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 5;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      cursor: pointer;
+    }
+    .nav-icon {
+      font-size: 22px;
+      line-height: 1;
+      opacity: 0.35;
+    }
+    .nav-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      opacity: 0.5;
+    }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-item.active .nav-label { color: var(--text-primary); opacity: 1; font-weight: 600; }
+
+    .nav-plus {
+      width: 52px; height: 52px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      margin-top: -20px;
+      flex-shrink: 0;
+    }
+    .nav-plus span { color: #FFF; font-size: 26px; line-height: 1; margin-top: -1px; }
+
+    /* ── Shared UI Components ────────────────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px 8px;
+      background: var(--bg-main);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .top-bar-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      text-align: center;
+    }
+    .back-btn {
+      font-size: 20px;
+      color: var(--text-primary);
+      cursor: pointer;
+      width: 28px;
+      text-align: center;
+    }
+    .top-spacer { width: 28px; }
+
+    .section-content {
+      padding: 0 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 20px 0 10px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .card-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .card-meta {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+    }
+    .card-arrow {
+      font-size: 16px;
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: #F0F0F0;
+      border-radius: var(--radius-badge);
+      padding: 3px 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badge-new {
+      background: #0D0D0D;
+      color: #FFF;
+    }
+    .badge-green {
+      background: #DCFCE7;
+      color: var(--green);
+    }
+
+    .btn-primary {
+      display: block;
+      width: 100%;
+      background: var(--accent);
+      color: #FFF;
+      border: none;
+      border-radius: var(--radius-pill);
+      padding: 16px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      font-family: var(--font);
+      letter-spacing: -0.2px;
+    }
+    .btn-secondary {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: var(--text-primary);
+      border: 1.5px solid var(--text-primary);
+      border-radius: var(--radius-pill);
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      font-family: var(--font);
+      margin-top: 10px;
+    }
+    .btn-ghost {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      border-radius: var(--radius-pill);
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+      font-family: var(--font);
+      margin-top: 6px;
+    }
+
+    .cta-area {
+      padding: 12px 20px 16px;
+      background: var(--bg-main);
+      border-top: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    /* Context Sticky Bar — Review 상세 CTA */
+    .context-sticky-bar {
+      padding: 10px 20px 14px;
+      background: var(--bg-main);
+      border-top: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+    .context-sticky-bar .ctx-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-bottom: 2px;
+      letter-spacing: 0.1px;
+    }
+    .context-sticky-bar .ctx-recommendation {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+    .btn-primary-disabled {
+      display: block;
+      width: 100%;
+      background: #D1D1D1;
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-pill);
+      padding: 16px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      cursor: not-allowed;
+      font-family: var(--font);
+      letter-spacing: -0.2px;
+    }
+    .ctx-hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 7px;
+    }
+    .ctx-secondary-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn-ctx-ghost {
+      flex: 1;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1.5px solid #E0E0E0;
+      border-radius: var(--radius-pill);
+      padding: 12px 10px;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+      font-family: var(--font);
+    }
+
+    /* ── Screen Label ────────────────────────────────────────────── */
+    .screen-label {
+      color: #888;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 14px;
+      letter-spacing: -0.1px;
+    }
+
+    /* ── Loading Animation ───────────────────────────────────────── */
+    @keyframes dotPulse {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+    .loading-dots {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .loading-dots span {
+      width: 7px; height: 7px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Checklist ───────────────────────────────────────────────── */
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+    .checkbox {
+      width: 22px; height: 22px;
+      border: 2px solid var(--border-card);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .checkbox.checked {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #FFF;
+      font-size: 13px;
+    }
+    .checklist-text {
+      font-size: 15px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* ── Timeline ────────────────────────────────────────────────── */
+    .timeline {
+      position: relative;
+      padding-left: 32px;
+      margin: 0 20px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px; top: 8px; bottom: 8px;
+      width: 2px;
+      background: var(--border-subtle);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .timeline-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      position: absolute;
+      left: -27px;
+      top: 12px;
+      border: 2px solid var(--bg-screen);
+    }
+    .timeline-dot.green { background: var(--green); }
+    .timeline-dot.dark { background: var(--text-primary); }
+    .timeline-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .timeline-type {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .timeline-date {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+    .timeline-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 16px 0;
+    }
+    .timeline-divider::before, .timeline-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border-subtle);
+    }
+    .timeline-divider span {
+      font-size: 11px; color: var(--text-tertiary);
+    }
+
+    /* ── Progress Bar ────────────────────────────────────────────── */
+    .progress-bar {
+      display: flex; gap: 6px;
+      padding: 14px 24px 0;
+    }
+    .progress-dot {
+      flex: 1; height: 4px;
+      background: var(--border-subtle);
+      border-radius: 2px;
+    }
+    .progress-dot.filled { background: var(--text-primary); }
+
+    /* ── Form Field ──────────────────────────────────────────────── */
+    .form-field {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 13px 16px;
+      margin-bottom: 8px;
+      border: 1.5px solid transparent;
+      position: relative;
+    }
+    .form-field.error { border-color: #EF4444; background: #FEF2F2; }
+    .form-field.confirmed { border-color: transparent; }
+    .field-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      margin-bottom: 3px;
+    }
+    .field-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .field-hint {
+      font-size: 11px;
+      color: #EF4444;
+      margin-top: 3px;
+    }
+    .field-check {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--green);
+      font-size: 16px;
+    }
+    .field-edit {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #EF4444;
+      font-size: 14px;
+    }
+
+    /* ── Outcome Options ─────────────────────────────────────────── */
+    .option-card {
+      background: var(--bg-card);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .option-card.selected {
+      border-color: var(--text-primary);
+      background: #FFF;
+    }
+    .option-card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .option-sub-input {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .option-amount {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .option-unit {
+      font-size: 15px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Memory Path ─────────────────────────────────────────────── */
+    .memory-path {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+    .memory-step {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .memory-arrow { color: var(--text-tertiary); }
+    .memory-pending {
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
+    /* ── Honest box ──────────────────────────────────────────────── */
+    .honest-box {
+      background: #F5F5F5;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .honest-box-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .honest-box-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── Stats Row ───────────────────────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: 0;
+    }
+    .stat-item {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+    }
+    .stat-item + .stat-item {
+      border-left: 1px solid var(--border-subtle);
+    }
+    .stat-value {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Insurance List ──────────────────────────────────────────── */
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+    .list-item-left { flex: 1; }
+    .list-item-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .list-item-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ── Health Score Card ───────────────────────────────────────── */
+    .health-card {
+      background: var(--text-primary);
+      color: #FFF;
+      border-radius: var(--radius-card);
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .health-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .health-score-big {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -2px;
+      color: #FFF;
+    }
+    .health-score-unit {
+      font-size: 22px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+    }
+    .health-status {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+      margin-top: 4px;
+    }
+    .health-ring {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.15);
+      border-top-color: rgba(255,255,255,0.9);
+      border-right-color: rgba(255,255,255,0.9);
+      border-bottom-color: rgba(255,255,255,0.6);
+      flex-shrink: 0;
+    }
+
+    /* ── Bottom Sheet ────────────────────────────────────────────── */
+    .sheet-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-radius: var(--radius-phone);
+      z-index: 20;
+    }
+    .bottom-sheet {
+      background: var(--bg-main);
+      border-radius: 24px 24px 0 0;
+      padding: 12px 20px 24px;
+    }
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: #DDD;
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .sheet-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .sheet-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 12px;
+      border-radius: 14px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .sheet-option:hover { background: var(--bg-card); }
+    .sheet-option.primary { background: var(--bg-card); }
+    .sheet-option-icon {
+      width: 44px; height: 44px;
+      background: var(--bg-screen);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .sheet-option.primary .sheet-option-icon { background: var(--text-primary); }
+    .sheet-option-text-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .sheet-option.primary .sheet-option-text-title { }
+    .sheet-option-text-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+
+    /* ── Trust Signals ───────────────────────────────────────────── */
+    .trust-signals {
+      margin: 14px 0;
+    }
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .trust-check {
+      color: var(--green);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ── Preview Teaser Card ─────────────────────────────────────── */
+    .teaser-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px dashed var(--border-card);
+      opacity: 0.75;
+    }
+    .teaser-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .teaser-item {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .teaser-cta {
+      font-size: 12px;
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-top: 10px;
+      text-decoration: underline;
+    }
+
+    /* ── Loading Banner ──────────────────────────────────────────── */
+    .loading-banner {
+      background: #F0F0F0;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .loading-banner-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .loading-banner-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .loading-banner-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── Empty State ─────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    .empty-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    .empty-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ── Greeting ────────────────────────────────────────────────── */
+    .greeting-area {
+      padding: 20px 20px 8px;
+      background: var(--bg-main);
+    }
+    .greeting-hi {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .greeting-main {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    /* ── Decision 3-button area ──────────────────────────────────── */
+    .decision-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-ghost-sm {
+      flex: 1;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1.5px solid var(--border-card);
+      border-radius: var(--radius-pill);
+      padding: 12px 8px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      font-family: var(--font);
+    }
+
+    /* ── Event preview card ──────────────────────────────────────── */
+    .event-preview {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .event-preview-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    .event-preview-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .event-preview-row:last-child { border-bottom: none; }
+    .event-preview-key {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .event-preview-val {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    /* ── Faded card ──────────────────────────────────────────────── */
+    .card-faded {
+      opacity: 0.45;
+    }
+
+    /* ── Note text ───────────────────────────────────────────────── */
+    .note-text {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      text-align: center;
+      padding: 0 8px;
+      line-height: 1.5;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+    .note-text-left {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      line-height: 1.5;
+      margin-top: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* ── Onboarding centered layout ──────────────────────────────── */
+    .onboarding-content {
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .onboarding-heading {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-align: center;
+      letter-spacing: -0.5px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .onboarding-sub {
+      font-size: 15px;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    /* ── Review claim cards ──────────────────────────────────────── */
+    .claim-card {
+      background: var(--bg-card);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .claim-card-left { flex: 1; }
+    .claim-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+    .claim-amount {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .claim-status {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 100px;
+      flex-shrink: 0;
+      margin-left: 10px;
+      margin-top: 2px;
+    }
+    .claim-status-ok {
+      background: #DCFCE7;
+      color: var(--green);
+    }
+    .claim-status-check {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    /* ── Docs list ───────────────────────────────────────────────── */
+    .docs-list {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 4px 16px;
+      margin-bottom: 12px;
+    }
+    .docs-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    .docs-item:last-child { border-bottom: none; }
+    .docs-bullet {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- ── Page Header ─────────────────────────────────────────────── -->
+  <div class="page-header">
+    <h1>Decision OS — 주요 화면 와이어프레임</h1>
+    <p>
+      보험 플레이북 MVP · Low-to-Medium Fidelity · 2026-07-21<br>
+      핵심 루프: Review → Decision → Outcome → Memory
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  ROW 1: Home States                                           -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <p class="row-label">Row 1 — Home 상태</p>
+  <div class="phones-row">
+
+    <!-- ── Screen 1: Home · Inbox 있음 ─────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <!-- Status Bar -->
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <!-- Greeting -->
+          <div class="greeting-area">
+            <div class="greeting-hi">안녕하세요, 박지은님</div>
+            <div class="greeting-main">오늘 확인할 항목이<br>있습니다</div>
+          </div>
+
+          <!-- Content -->
+          <div class="screen-content">
+            <div class="section-content">
+
+              <div class="section-header">새로운 Review</div>
+              <div class="card" style="border: 1.5px solid #0D0D0D; background:#FFF;">
+                <div class="card-row" style="margin-bottom:8px;">
+                  <span class="badge badge-new">NEW</span>
+                  <span class="card-meta">방금 전</span>
+                </div>
+                <div class="card-row">
+                  <div>
+                    <div class="card-title">보험금 청구 Review</div>
+                    <div class="card-subtitle">청구 가능 보험 2건 발견</div>
+                  </div>
+                  <span class="card-arrow">→</span>
+                </div>
+              </div>
+
+              <div class="section-header">진행 중인 Action</div>
+              <div class="card">
+                <div class="card-row">
+                  <div>
+                    <div class="card-title">청구 준비 중</div>
+                    <div class="card-subtitle">서류 준비 완료 후 결과를 입력해 주세요</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px;">
+                  <span class="badge">결과 대기 중</span>
+                </div>
+              </div>
+
+              <div class="section-header">보험 현황</div>
+              <div class="card">
+                <div class="card-row">
+                  <div>
+                    <div class="card-title" style="font-size:14px;">보험 건강도 87점</div>
+                    <div class="card-subtitle">보험 6건 · 월 182,000원</div>
+                  </div>
+                  <span class="card-arrow">→</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom Nav -->
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 1 · Home · Inbox 있음</p>
+    </div>
+
+    <!-- ── Screen 2: Home · Empty 상태 ─────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="greeting-area">
+            <div class="greeting-hi">안녕하세요, 박지은님</div>
+            <div class="greeting-main">모든 항목을<br>확인했습니다</div>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div class="empty-state">
+                <div class="empty-icon">✓</div>
+                <div class="empty-title">검토할 항목이 없습니다</div>
+                <div class="empty-sub">새로운 이벤트가 발생하면<br>여기에 알림이 표시됩니다</div>
+              </div>
+
+              <div class="section-header">현재 보험 현황</div>
+              <div class="card">
+                <div class="card-title" style="font-size:15px; margin-bottom:6px;">보험 건강도 87점</div>
+                <div class="card-subtitle">6건 · 월 182,000원</div>
+                <div class="card-meta" style="margin-top:8px;">다음 Review: 3개월 후</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 2 · Home · 빈 상태</p>
+    </div>
+
+    <!-- ── Screen 3: Home · Loading ─────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="greeting-area">
+            <div class="greeting-hi">안녕하세요, 박지은님</div>
+            <div class="greeting-main">분석 중인 항목이<br>있습니다</div>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top: 16px;">
+                <div class="loading-banner">
+                  <div class="loading-banner-header">
+                    <div class="loading-dots">
+                      <span></span><span></span><span></span>
+                    </div>
+                    <div class="loading-banner-title">보험금 청구 가능성 분석 중...</div>
+                  </div>
+                  <div class="loading-banner-sub">
+                    잠시 후 Review가 도착합니다.<br>앱을 닫아도 괜찮습니다.
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-header">이전 기록</div>
+              <div class="card card-faded">
+                <div class="card-title" style="font-size:14px;">최근 Outcome: 72,000원 지급 완료</div>
+                <div class="card-subtitle">7월 15일</div>
+              </div>
+              <div class="card card-faded">
+                <div class="card-title" style="font-size:14px;">보험 건강도 87점</div>
+                <div class="card-subtitle">보험 6건 · 월 182,000원</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 3 · Home · Review 생성 중</p>
+    </div>
+
+  </div><!-- /Row 1 -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  ROW 2: + Flow                                                -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <p class="row-label">Row 2 — + 기록 플로우</p>
+  <div class="phones-row">
+
+    <!-- ── Screen 4: + Bottom Sheet ─────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen" style="position:relative;">
+
+          <!-- Dimmed home behind sheet -->
+          <div style="position:absolute;inset:0;background:var(--bg-screen);filter:none;z-index:1;display:flex;flex-direction:column;">
+            <div class="status-bar">
+              <span class="time">9:41</span>
+              <div class="icons">
+                <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+                <span class="wifi-icon">▲</span>
+                <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+              </div>
+            </div>
+            <div class="dynamic-island"></div>
+            <div class="greeting-area">
+              <div class="greeting-hi">안녕하세요, 박지은님</div>
+              <div class="greeting-main">오늘 확인할 항목이<br>있습니다</div>
+            </div>
+            <div style="padding:0 20px;margin-top:12px;">
+              <div class="section-header">새로운 Review</div>
+              <div class="card">
+                <div class="card-title">보험금 청구 Review</div>
+                <div class="card-subtitle">청구 가능 보험 2건 발견</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overlay -->
+          <div class="sheet-overlay">
+            <div class="bottom-sheet">
+              <div class="sheet-handle"></div>
+              <div class="sheet-title">무엇을 기록할까요?</div>
+
+              <div class="sheet-option primary">
+                <div class="sheet-option-icon" style="background:#0D0D0D;color:#FFF;">📷</div>
+                <div>
+                  <div class="sheet-option-text-title">병원 영수증 촬영</div>
+                  <div class="sheet-option-text-sub">가장 빠른 방법</div>
+                </div>
+              </div>
+
+              <div class="sheet-option">
+                <div class="sheet-option-icon">🏥</div>
+                <div>
+                  <div class="sheet-option-text-title">병원 방문 직접 등록</div>
+                </div>
+              </div>
+
+              <div class="sheet-option">
+                <div class="sheet-option-icon">📋</div>
+                <div>
+                  <div class="sheet-option-text-title">보험 정보 추가</div>
+                </div>
+              </div>
+
+              <div class="sheet-option">
+                <div class="sheet-option-icon">✏️</div>
+                <div>
+                  <div class="sheet-option-text-title">기타 상황 기록</div>
+                </div>
+              </div>
+
+              <button class="btn-ghost" style="margin-top:8px;font-size:16px;color:#999;">취소</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <p class="screen-label">Screen 4 · + Bottom Sheet</p>
+    </div>
+
+    <!-- ── Screen 5: OCR 결과 확인 ──────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title">영수증 확인</span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top:16px;margin-bottom:4px;">
+                <div style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;line-height:1.25;margin-bottom:6px;">
+                  촬영한 내용을<br>확인해 주세요
+                </div>
+                <div style="font-size:14px;color:var(--text-secondary);margin-bottom:18px;">
+                  잘못된 항목만 수정하면 됩니다
+                </div>
+              </div>
+
+              <div class="form-field confirmed">
+                <div class="field-label">병원명</div>
+                <div class="field-value">서울OO정형외과</div>
+                <span class="field-check">✓</span>
+              </div>
+
+              <div class="form-field error">
+                <div class="field-label">진료일</div>
+                <div class="field-value" style="color:#EF4444;border-bottom:1.5px solid #EF4444;display:inline-block;padding-bottom:2px;">2026.07.15</div>
+                <div class="field-hint">날짜를 확인해 주세요</div>
+                <span class="field-edit">!</span>
+              </div>
+
+              <div class="form-field confirmed">
+                <div class="field-label">진료비</div>
+                <div class="field-value">84,000원</div>
+                <span class="field-check">✓</span>
+              </div>
+
+              <div class="form-field confirmed">
+                <div class="field-label">진료 유형</div>
+                <div class="field-value">외래진료</div>
+                <span class="field-check">✓</span>
+              </div>
+
+              <div class="note-text">
+                AI가 인식한 내용입니다.<br>정확하지 않을 수 있습니다.
+              </div>
+            </div>
+          </div>
+
+          <div class="cta-area">
+            <button class="btn-primary">이 내용으로 확인</button>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 5 · OCR 결과 확인</p>
+    </div>
+
+    <!-- ── Screen 6: Event 후보 확인 ────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title">병원 방문 확인</span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top:16px;margin-bottom:20px;">
+                <div style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;line-height:1.3;">
+                  이 내용을 보험<br>프로젝트에 반영할까요?
+                </div>
+              </div>
+
+              <div class="event-preview">
+                <div class="event-preview-icon">🏥</div>
+                <div class="event-preview-row">
+                  <span class="event-preview-key">병원</span>
+                  <span class="event-preview-val">서울OO정형외과</span>
+                </div>
+                <div class="event-preview-row">
+                  <span class="event-preview-key">날짜</span>
+                  <span class="event-preview-val">2026년 7월 21일 (월)</span>
+                </div>
+                <div class="event-preview-row">
+                  <span class="event-preview-key">진료비</span>
+                  <span class="event-preview-val">84,000원</span>
+                </div>
+                <div class="event-preview-row">
+                  <span class="event-preview-key">진료 유형</span>
+                  <span class="event-preview-val">외래진료</span>
+                </div>
+              </div>
+
+              <div class="note-text">
+                확인 후 보험 청구 가능성을 분석합니다
+              </div>
+            </div>
+          </div>
+
+          <div class="cta-area">
+            <button class="btn-primary">보험 프로젝트에 반영</button>
+            <button class="btn-secondary">취소</button>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 6 · Event 후보 확인</p>
+    </div>
+
+  </div><!-- /Row 2 -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  ROW 3: Review & Decision                                     -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <p class="row-label">Row 3 — Review & Decision 플로우</p>
+  <div class="phones-row">
+
+    <!-- ── Screen 7a: Review 상세 — Context Sticky Bar (Disabled) ── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title">Review</span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top:10px;margin-bottom:4px;">
+                <span class="badge">AI 분석 완료 · 2026.07.21</span>
+              </div>
+
+              <!-- Summary -->
+              <div style="margin:8px 0 6px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Summary</div>
+                <div style="font-size:20px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;line-height:1.25;margin-bottom:5px;">
+                  보험금 청구가<br>가능합니다
+                </div>
+                <div style="font-size:13px;color:var(--text-secondary);">청구 가능한 보험 2건을 확인했습니다</div>
+              </div>
+
+              <!-- Recommendation -->
+              <div style="margin:12px 0 6px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Recommendation</div>
+                <div class="claim-card" style="border-left:3px solid #0D0D0D;">
+                  <div class="claim-card-left">
+                    <div class="claim-name">실손의료보험 청구 권장</div>
+                    <div class="claim-amount">예상 수령 약 72,000원</div>
+                  </div>
+                  <span class="claim-status claim-status-ok">권장</span>
+                </div>
+              </div>
+
+              <!-- Evidence — partially visible, implying scroll needed -->
+              <div style="margin:10px 0 4px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Evidence</div>
+                <div style="font-size:13px;color:var(--text-primary);line-height:1.5;background:var(--bg-card);border-radius:12px;padding:12px;">
+                  통원 진료는 실손의료보험 보장 범위에 해당하며, 본인부담금 84,000원 중 약 72,000원이 청구 가능합니다...
+                  <span style="color:var(--text-secondary);">(계속 읽기)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Context Sticky Bar — DISABLED state -->
+          <div class="context-sticky-bar">
+            <div class="ctx-label">추천</div>
+            <div class="ctx-recommendation">실손보험 청구 권장</div>
+            <div class="btn-primary-disabled">청구 준비 시작</div>
+            <div class="ctx-hint">추천 근거를 먼저 확인해 주세요 ↑</div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 7a · Review 상세 · CTA 비활성 (근거 확인 전)</p>
+    </div>
+
+    <!-- ── Screen 7b: Review 상세 — Context Sticky Bar (Enabled) ─── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title">Review</span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+
+              <!-- Evidence (already read, shown compact) -->
+              <div style="margin:10px 0 6px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Evidence</div>
+                <div class="claim-card">
+                  <div class="claim-card-left">
+                    <div class="claim-name">실손의료보험</div>
+                    <div class="claim-amount">예상 청구액 약 72,000원</div>
+                  </div>
+                  <span class="claim-status claim-status-ok">청구 가능 ✓</span>
+                </div>
+                <div class="claim-card">
+                  <div class="claim-card-left">
+                    <div class="claim-name">상해보험 통원특약</div>
+                    <div class="claim-amount">예상 청구액 약 50,000원</div>
+                  </div>
+                  <span class="claim-status claim-status-check">확인 필요</span>
+                </div>
+              </div>
+
+              <!-- Risk / Uncertainty (last required section) -->
+              <div style="margin:10px 0 6px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Risk &amp; Uncertainty</div>
+                <div class="honest-box">
+                  <div class="honest-box-label">AI가 확인하지 못한 정보</div>
+                  <div class="honest-box-text">수술비 특약 적용 여부는 진단명이 있어야 확인 가능합니다</div>
+                </div>
+              </div>
+
+              <!-- Docs list -->
+              <div style="margin:10px 0 4px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">필요 서류</div>
+                <div class="docs-list">
+                  <div class="docs-item"><span class="docs-bullet"></span>진료비 영수증</div>
+                  <div class="docs-item"><span class="docs-bullet"></span>진료비 세부내역서</div>
+                  <div class="docs-item"><span class="docs-bullet"></span>처방전 또는 통원확인서</div>
+                </div>
+              </div>
+
+              <div style="height:6px;"></div>
+            </div>
+          </div>
+
+          <!-- Context Sticky Bar — ENABLED state -->
+          <div class="context-sticky-bar">
+            <div class="ctx-label">추천</div>
+            <div class="ctx-recommendation">실손보험 청구를 권장합니다</div>
+            <button class="btn-primary">청구 준비 시작</button>
+            <div class="ctx-secondary-row">
+              <div class="btn-ctx-ghost">나중에 검토</div>
+              <div class="btn-ctx-ghost">무시</div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 7b · Review 상세 · CTA 활성 (근거 확인 완료)</p>
+    </div>
+
+    <!-- ── Screen 8: Decision · 서류 체크리스트 ──────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title"></span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top:8px;margin-bottom:20px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">청구 준비</div>
+                <div style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;line-height:1.25;margin-bottom:8px;">
+                  필요한 서류를<br>준비해 주세요
+                </div>
+                <div style="font-size:14px;color:var(--text-secondary);line-height:1.5;">
+                  모든 서류 준비 후 보험사 앱에서<br>직접 청구하세요
+                </div>
+              </div>
+
+              <div class="checklist-item">
+                <div class="checkbox"></div>
+                <span class="checklist-text">진료비 영수증</span>
+              </div>
+              <div class="checklist-item">
+                <div class="checkbox"></div>
+                <span class="checklist-text">진료비 세부내역서</span>
+              </div>
+              <div class="checklist-item">
+                <div class="checkbox"></div>
+                <span class="checklist-text">처방전 또는 통원확인서</span>
+              </div>
+
+              <div class="note-text-left" style="margin-top:16px;">
+                서류 준비가 완료되면 보험사 앱에서 청구를 진행해 주세요. 결과는 여기서 기록합니다.
+              </div>
+            </div>
+          </div>
+
+          <div class="cta-area">
+            <button class="btn-primary">청구 결과 나오면 기록하기</button>
+            <button class="btn-ghost">나중에 입력하기</button>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 8 · Decision · 청구 진행</p>
+    </div>
+
+    <!-- ── Screen 9: Outcome 입력 ────────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="top-bar">
+            <span class="back-btn">‹</span>
+            <span class="top-bar-title">결과 기록</span>
+            <span class="top-spacer"></span>
+          </div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="margin-top:16px;margin-bottom:20px;">
+                <div style="font-size:22px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;line-height:1.25;margin-bottom:6px;">
+                  보험금 처리 결과를<br>알려주세요
+                </div>
+                <div style="font-size:14px;color:var(--text-secondary);">
+                  기록된 결과는 다음 Review에 활용됩니다
+                </div>
+              </div>
+
+              <!-- Selected option -->
+              <div class="option-card selected">
+                <div class="option-card-title">
+                  <span style="color:var(--green);">✓</span> 지급 완료
+                </div>
+                <div class="option-sub-input">
+                  <span style="font-size:13px;color:var(--text-secondary);">금액 입력</span>
+                  <div>
+                    <span class="option-amount">72,000</span>
+                    <span class="option-unit"> 원</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="option-card">
+                <div class="option-card-title">거절됨</div>
+              </div>
+
+              <div class="option-card">
+                <div class="option-card-title">추가 서류 요청</div>
+              </div>
+
+              <!-- Memory preview -->
+              <div style="margin-top:16px;margin-bottom:4px;">
+                <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:6px;">기록되면 Memory에 저장됩니다</div>
+                <div class="memory-path">
+                  <span class="memory-step">병원 방문</span>
+                  <span class="memory-arrow">→</span>
+                  <span class="memory-step">청구 Review</span>
+                  <span class="memory-arrow">→</span>
+                  <span class="memory-step">청구 진행</span>
+                  <span class="memory-arrow">→</span>
+                  <span class="memory-pending">___</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cta-area">
+            <button class="btn-primary">기록하기</button>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 9 · Outcome 입력</p>
+    </div>
+
+  </div><!-- /Row 3 -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  ROW 4: Supporting Screens                                    -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <p class="row-label">Row 4 — 지원 화면</p>
+  <div class="phones-row">
+
+    <!-- ── Screen 10: Insurance Project 상세 ─────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="padding-top:20px;margin-bottom:16px;">
+                <div style="font-size:26px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;">내 보험</div>
+              </div>
+
+              <!-- Health Score Card -->
+              <div class="health-card">
+                <div class="health-main">
+                  <div>
+                    <div>
+                      <span class="health-score-big">87</span>
+                      <span class="health-score-unit">점</span>
+                    </div>
+                    <div class="health-status">보장 적정 · 중복 일부 존재</div>
+                  </div>
+                  <div class="health-ring"></div>
+                </div>
+                <div style="background:rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;">
+                  <div class="stats-row" style="color:#FFF;">
+                    <div class="stat-item">
+                      <span class="stat-value" style="color:#FFF;">6건</span>
+                      <span class="stat-label" style="color:rgba(255,255,255,0.6);">가입 보험</span>
+                    </div>
+                    <div class="stat-item" style="border-color:rgba(255,255,255,0.15);">
+                      <span class="stat-value" style="color:#FFF;">182,000원</span>
+                      <span class="stat-label" style="color:rgba(255,255,255,0.6);">월 보험료</span>
+                    </div>
+                    <div class="stat-item" style="border-color:rgba(255,255,255,0.15);">
+                      <span class="stat-value" style="color:#FFF;">3개월</span>
+                      <span class="stat-label" style="color:rgba(255,255,255,0.6);">다음 Review</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-header">가입 보험 목록</div>
+              <div class="list-item">
+                <div class="list-item-left">
+                  <div class="list-item-title">KB손해보험 실손</div>
+                  <div class="list-item-sub">월 43,000원</div>
+                </div>
+                <span class="card-arrow">→</span>
+              </div>
+              <div class="list-item">
+                <div class="list-item-left">
+                  <div class="list-item-title">삼성생명 종신</div>
+                  <div class="list-item-sub">월 89,000원</div>
+                </div>
+                <span class="card-arrow">→</span>
+              </div>
+              <div class="list-item">
+                <div class="list-item-left">
+                  <div class="list-item-title">현대해상 상해</div>
+                  <div class="list-item-sub">월 50,000원</div>
+                </div>
+                <span class="card-arrow">→</span>
+              </div>
+
+              <div class="section-header">최근 Review</div>
+              <div class="card">
+                <div class="card-row">
+                  <div>
+                    <div class="card-title" style="font-size:14px;">보험금 청구 Review</div>
+                    <div class="card-subtitle">2026.07.21</div>
+                  </div>
+                  <span class="badge badge-green">채택 완료</span>
+                </div>
+              </div>
+              <div style="height:8px;"></div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item active"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 10 · Insurance Project 상세</p>
+    </div>
+
+    <!-- ── Screen 11: Memory Timeline ────────────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <div class="screen-content">
+            <div class="section-content">
+              <div style="padding-top:20px;margin-bottom:4px;">
+                <div style="font-size:26px;font-weight:700;color:var(--text-primary);letter-spacing:-0.5px;margin-bottom:4px;">메모리</div>
+                <div style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;">모든 결정과 결과의 기록</div>
+              </div>
+
+              <div class="timeline">
+                <!-- Outcome -->
+                <div class="timeline-item">
+                  <div class="timeline-dot green"></div>
+                  <div class="timeline-card">
+                    <div class="timeline-type" style="color:var(--green);">Outcome</div>
+                    <div class="timeline-title">보험금 72,000원 지급</div>
+                    <div class="timeline-date">2026.07.25</div>
+                  </div>
+                </div>
+
+                <!-- Decision -->
+                <div class="timeline-item">
+                  <div class="timeline-dot dark"></div>
+                  <div class="timeline-card">
+                    <div class="timeline-type">Decision</div>
+                    <div class="timeline-title">청구 진행</div>
+                    <div class="timeline-date">2026.07.21</div>
+                  </div>
+                </div>
+
+                <!-- Review -->
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-card">
+                    <div class="timeline-type">Review</div>
+                    <div class="timeline-title">보험금 청구 Review</div>
+                    <div class="timeline-date">2026.07.21</div>
+                  </div>
+                </div>
+
+                <!-- Event -->
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-card">
+                    <div class="timeline-type">Event</div>
+                    <div class="timeline-title">서울OO정형외과 방문</div>
+                    <div class="timeline-date">2026.07.21</div>
+                  </div>
+                </div>
+
+                <div class="timeline-divider"><span>이전 기록</span></div>
+
+                <!-- Earlier -->
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-card">
+                    <div class="timeline-type">시작</div>
+                    <div class="timeline-title">보험 프로젝트 생성</div>
+                    <div class="timeline-date">2026.07.01</div>
+                  </div>
+                </div>
+              </div>
+              <div style="height:8px;"></div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">홈</div></div>
+            <div class="nav-item"><div class="nav-icon">📁</div><div class="nav-label">프로젝트</div></div>
+            <div class="nav-plus"><span>+</span></div>
+            <div class="nav-item active"><div class="nav-icon">🧠</div><div class="nav-label">메모리</div></div>
+            <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">프로필</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="screen-label">Screen 11 · Memory Timeline</p>
+    </div>
+
+    <!-- ── Screen 12: Onboarding · 보험 연동 ─────────────────────── -->
+    <div class="phone-unit">
+      <div class="phone-frame">
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time">9:41</span>
+            <div class="icons">
+              <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="wifi-icon">▲</span>
+              <div class="battery"><div class="battery-body"><div class="battery-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="dynamic-island"></div>
+
+          <!-- Progress Bar -->
+          <div class="progress-bar">
+            <div class="progress-dot filled"></div>
+            <div class="progress-dot filled"></div>
+            <div class="progress-dot"></div>
+            <div class="progress-dot"></div>
+          </div>
+
+          <div class="screen-content">
+            <div class="onboarding-content">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:36px;text-align:center;margin-bottom:16px;">🔗</div>
+                <div class="onboarding-heading">내 보험 정보를<br>가져올게요</div>
+                <div class="onboarding-sub">자동으로 가져오면 더 정확한<br>분석을 받을 수 있어요</div>
+
+                <div class="teaser-card">
+                  <div class="teaser-label">예상 분석 결과</div>
+                  <div class="teaser-item">한국 35세 평균 보험: 6건 / 월 18만원</div>
+                  <div class="teaser-cta">→ 내 실제 보험을 연동하면 정확히 알 수 있어요</div>
+                </div>
+
+                <div class="trust-signals">
+                  <div class="trust-item">
+                    <span class="trust-check">✓</span>
+                    비밀번호는 저장되지 않습니다
+                  </div>
+                  <div class="trust-item">
+                    <span class="trust-check">✓</span>
+                    언제든 연동을 해제할 수 있습니다
+                  </div>
+                </div>
+              </div>
+
+              <div style="padding-bottom:12px;">
+                <button class="btn-primary">자동으로 가져오기 (30초)</button>
+                <button class="btn-ghost" style="display:block;margin-top:8px;">직접 입력할게요</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- No bottom nav for onboarding -->
+        </div>
+      </div>
+      <p class="screen-label">Screen 12 · 온보딩 · 보험 연동</p>
+    </div>
+
+  </div><!-- /Row 4 -->
+
+</body>
+</html>

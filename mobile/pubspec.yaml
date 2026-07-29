@@ -1,0 +1,32 @@
+name: decision_os
+description: AI 리서치 플레이북 기반 개인 의사결정 플랫폼
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  hooks_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  go_router: ^14.8.1
+  supabase_flutter: ^2.9.1
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+  http: ^1.2.0
+  shared_preferences: ^2.3.0
+  app_settings: ^5.1.1
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.3
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
