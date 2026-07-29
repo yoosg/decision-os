@@ -1,4 +1,5 @@
 import warnings
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
@@ -14,7 +15,8 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     firebase_service_account_json: str = Field(default="", repr=False)
     # Story 6.1: 실 수집기 어댑터 — "real"(외부 소스 수집) | "stub"(하드코딩 5건 폴백)
-    collector_mode: str = "real"
+    # Literal로 강제 — 오타(예: "Stub")가 조용히 real 실네트워크 경로로 빠지지 않게 로드 시 검증.
+    collector_mode: Literal["real", "stub"] = "real"
     # 외부 HTTP 요청 타임아웃(초). 스파이크에서 확인된 타임아웃 이슈 대응.
     collector_timeout_seconds: float = 10.0
 

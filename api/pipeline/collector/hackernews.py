@@ -40,22 +40,35 @@ class HackerNewsCollector(BaseCollector):
 
     def collect(self) -> list[RawArticle]:
         out: list[RawArticle] = []
+        failures = 0
         for query in self._queries:
             if len(out) >= self._max_total:
                 break
-            r = self._client.get(
-                _HN_API,
-                params={"query": query, "tags": "story", "hitsPerPage": self._per_query},
-            )
-            r.raise_for_status()
-            for hit in r.json().get("hits", []):
+            try:
+                r = self._client.get(
+                    _HN_API,
+                    params={"query": query, "tags": "story", "hitsPerPage": self._per_query},
+                )
+                r.raise_for_status()
+                hits = r.json().get("hits", [])
+            except Exception:
+                # 한 쿼리의 일시 실패(429/500/파싱)가 HN 소스 전체(전 키워드)를 죽이지
+                # 않도록 격리 — 나머지 쿼리는 계속 수집한다(AD-5 취지).
+                failures += 1
+                continue
+            for hit in hits:
                 if len(out) >= self._max_total:
                     break
                 title = (hit.get("title") or "").strip()
                 if not title:
                     continue
+                url = hit.get("url")
+                object_id = hit.get("objectID")
+                # 외부 링크도 objectID도 없으면 유효 URL을 만들 수 없어 스킵("item?id=None" 방지).
+                if not url and not object_id:
+                    continue
                 # 외부 링크가 없으면 HN 스레드 URL로 폴백(빈 URL 금지).
-                link = hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID')}"
+                link = url or f"https://news.ycombinator.com/item?id={object_id}"
                 out.append(
                     RawArticle(
                         technology_name=derive_tech(title),
@@ -64,4 +77,8 @@ class HackerNewsCollector(BaseCollector):
                         source_type="hn",
                     )
                 )
+        # 모든 쿼리가 실패하고 하나도 못 모았으면 소스 실패로 표면화 — aggregator가
+        # source_failed로 격리·로깅하게 한다(전량 실패가 조용한 0건으로 위장되지 않도록).
+        if self._queries and failures == len(self._queries) and not out:
+            raise RuntimeError(f"all {failures} HN queries failed")
         return out

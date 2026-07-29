@@ -58,6 +58,15 @@ class RssCollector(BaseCollector):
         r.raise_for_status()
         feed = feedparser.parse(r.content)
 
+        # 손상 피드(bozo)가 엔트리 0건을 내면 "정상·0건"과 구분되지 않아 피드 헬스가
+        # 가려진다(AC2). 파싱 자체가 실패했으면 예외를 던져 aggregator가 source_failed로
+        # 관측하게 한다. (bozo여도 엔트리가 있으면 feedparser의 관용 파싱을 신뢰해 계속.)
+        if getattr(feed, "bozo", 0) and not feed.entries:
+            exc = getattr(feed, "bozo_exception", None)
+            raise ValueError(
+                f"malformed feed: {exc}" if exc is not None else "malformed feed (no entries)"
+            )
+
         out: list[RawArticle] = []
         for entry in feed.entries[: self._max_items]:
             title = (getattr(entry, "title", "") or "").strip()
