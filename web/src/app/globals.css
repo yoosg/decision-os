@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design Tokens — Decision OS (DESIGN.md / UX-DR1)
+   ============================================================ */
+:root {
+  /* Surface */
+  --surface-base: #FFFFFF;
+  --surface-raised: #F9F9F9;
+  --surface-card: #F2F2F2;
+  --surface-card-alt: #ECECEC;
+  --surface-overlay: rgba(0, 0, 0, 0.45);
+  --surface-honest-box: #F5F5F5;
+
+  /* Text */
+  --text-primary: #0D0D0D;
+  --text-secondary: #595D6A;
+  --text-tertiary: #9CA3AF;
+  --text-disabled: #D1D1D1;
+
+  /* Border */
+  --border-subtle: #E5E5E5;
+  --border-card: #DCDCDC;
+
+  /* Accent */
+  --accent-primary: #0D0D0D;
+  --accent-foreground: #FFFFFF;
+
+  /* Status */
+  --status-positive: #16A34A;
+  --status-positive-bg: #DCFCE7;
+  --status-warning: #B45309;
+  --status-uncertain: #6B7280;
+  --error: #EF4444;
+  --error-bg: #FEF2F2;
+
+  /* Typography */
+  --font-family: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+
+  /* Spacing (4px base) */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --screen-horizontal-padding: 20px;
+  --card-padding: 16px;
+  --section-gap: 20px;
+
+  /* Border Radius */
+  --radius-card: 16px;
+  --radius-pill: 9999px;
+  --radius-sheet: 24px 24px 0 0;
+  --radius-badge: 9999px;
+  --radius-timeline-card: 12px;
+  --radius-option-card: 14px;
+  --radius-form-field: 12px;
+  --radius-checklist-item: 12px;
+  --radius-fab-plus: 50%;
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+body {
+  font-family: var(--font-family);
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 한국어 본문 line-height (UX-DR14) */
+:lang(ko) {
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Typography Utility Classes
+   ============================================================ */
+.text-screen-title {
+  font-size: clamp(28px, 3vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.text-section-title {
+  font-size: clamp(22px, 2.5vw, 24px);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.text-body-large { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; }
+.text-body       { font-size: 15px; font-weight: 500; }
+.text-body-card  { font-size: 16px; font-weight: 600; }
+.text-label      { font-size: 13px; font-weight: 600; }
+.text-caption    { font-size: 11px; font-weight: 500; letter-spacing: 0.4px; }
+.text-caption-lg { font-size: 12px; font-weight: 500; letter-spacing: 0.8px; }
+.text-badge      { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* ============================================================
+   Layout (NFR-4: 모바일 우선, 데스크탑 최대 480px)
+   ============================================================ */
+.screen-container {
+  width: 100%;
+  padding: 0 var(--screen-horizontal-padding);
+}
+
+@media (min-width: 768px) {
+  .screen-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0;
+  }
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.dot-pulse {
+  animation: dot-pulse 0.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-pulse { animation: none; }
+}
