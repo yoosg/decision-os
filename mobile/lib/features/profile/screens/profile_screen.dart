@@ -1,6 +1,7 @@
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../providers/profile_provider.dart';
@@ -85,6 +86,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: const Text('로그아웃하시겠어요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      // 세션이 만료되면 라우터의 refreshListenable가 감지해 /signin으로 자동 이동한다.
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그아웃에 실패했습니다. 다시 시도해 주세요.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileNotifierProvider);
@@ -148,6 +180,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           subtitle: const Text('기기 설정에서 알림을 허용할 수 있습니다.'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => AppSettings.openAppSettings(type: AppSettingsType.notification),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          leading: const Icon(Icons.logout, color: Colors.red),
+          title: const Text('로그아웃', style: TextStyle(color: Colors.red)),
+          onTap: _logout,
         ),
       ],
     );
