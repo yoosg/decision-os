@@ -34,9 +34,7 @@ describe("HistoryContent", () => {
     render(<HistoryContent items={[]} />);
     expect(
       screen.getByText(
-        (_, node) =>
-          node?.textContent ===
-          "아직 기록된 학습 결정이 없습니다. Signal을 읽고 Learn Now를 선택하면 이곳에 기록이 시작됩니다."
+        "아직 기록된 학습이 없습니다. 기술 소식을 읽고 ‘지금 학습’을 선택하면 이곳에 기록이 시작됩니다."
       )
     ).toBeInTheDocument();
   });

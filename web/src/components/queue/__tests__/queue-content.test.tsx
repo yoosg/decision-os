@@ -51,7 +51,7 @@ describe("QueueContent", () => {
   it("모든 그룹이 비어있으면 전체 빈 상태 메시지가 표시된다", () => {
     render(<QueueContent groups={makeGroups()} estimatedMinutes={30} userId="u1" />);
     expect(
-      screen.getByText((_, node) => node?.textContent === "큐에 저장된 학습 항목이 없습니다. Signal을 읽고 Queue를 선택하면 여기에 저장됩니다.")
+      screen.getByText("아직 보관한 학습 항목이 없습니다. 기술 소식을 읽고 ‘나중에 학습’을 선택하면 여기에 저장됩니다.")
     ).toBeInTheDocument();
   });
 

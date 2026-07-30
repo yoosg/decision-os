@@ -142,8 +142,7 @@ export function QueueContent({ groups: initialGroups, estimatedMinutes }: QueueC
 
       {isEmpty ? (
         <p className="text-body" style={{ color: "var(--text-secondary)" }}>
-          큐에 저장된 학습 항목이 없습니다. <span lang="en">Signal</span>을 읽고 <span lang="en">Queue</span>를
-          선택하면 여기에 저장됩니다.
+          아직 보관한 학습 항목이 없습니다. 기술 소식을 읽고 &lsquo;나중에 학습&rsquo;을 선택하면 여기에 저장됩니다.
         </p>
       ) : (
         GROUP_ORDER.map(({ key, label }) => {

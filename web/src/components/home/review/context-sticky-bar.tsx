@@ -194,7 +194,7 @@ export function ContextStickyBar({
     setIsSubmitting(true);
     try {
       await postDecision({ review_id: reviewId, choice: "ignore" });
-      setToastMessage("이 Signal은 히스토리에서 다시 볼 수 있습니다.");
+      setToastMessage("이 기술 소식은 히스토리에서 다시 볼 수 있습니다.");
       setIsSubmitting(false); // P2: 성공 시 즉시 복구 (1.5s 지연 전)
       setTimeout(() => router.push("/home"), 1500);
     } catch {

@@ -21,7 +21,7 @@ export function ArchivedBanner() {
         보관된 REVIEW
       </p>
       <p className="text-body">
-        이 <span lang="en">Signal</span>은 보관되어 최신 정보 갱신이 중단되었습니다. 아래 내용은 결정 당시 기록입니다.
+        이 기술 소식은 보관되어 최신 정보 갱신이 중단되었습니다. 아래 내용은 결정 당시 기록입니다.
       </p>
     </div>
   );

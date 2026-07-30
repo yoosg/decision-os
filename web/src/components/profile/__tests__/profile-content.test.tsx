@@ -58,7 +58,7 @@ describe("ProfileContent", () => {
     // daily_learning_time_min ∈ {15,30,60}
     const body = (global.fetch as jest.Mock).mock.calls[0][1].body;
     expect(body).toContain('"daily_learning_time_min":15');
-    await waitFor(() => expect(screen.getByText("프로필이 저장됐습니다. 다음 Daily Brief에 반영됩니다.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("프로필이 저장됐습니다. 다음 오늘의 브리핑에 반영됩니다.")).toBeInTheDocument());
   });
 
   it("AC-3: 편집 취소 시 원래 값으로 복원되고 저장 API를 호출하지 않는다", () => {

@@ -37,8 +37,7 @@ export function HistoryContent({ items }: Props) {
   if (items.length === 0) {
     return (
       <p className="text-body" style={{ color: "var(--text-secondary)" }}>
-        아직 기록된 학습 결정이 없습니다. <span lang="en">Signal</span>을 읽고{" "}
-        <span lang="en">Learn Now</span>를 선택하면 이곳에 기록이 시작됩니다.
+        아직 기록된 학습이 없습니다. 기술 소식을 읽고 &lsquo;지금 학습&rsquo;을 선택하면 이곳에 기록이 시작됩니다.
       </p>
     );
   }

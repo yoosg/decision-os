@@ -89,7 +89,7 @@ export function ProfileContent({ initial }: Props) {
       if (!res.ok) throw new Error("failed");
       setSaved(form); // 확정 값 갱신
       setEditing(false);
-      setToast("프로필이 저장됐습니다. 다음 Daily Brief에 반영됩니다.");
+      setToast("프로필이 저장됐습니다. 다음 오늘의 브리핑에 반영됩니다.");
     } catch {
       setToast(
         controller.signal.aborted
