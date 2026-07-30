@@ -71,17 +71,29 @@ def create_decision(
     if not project_rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
-    # 1.5: 멱등성 — 이미 decision 존재 시 기존 decision_id 반환
+    # 1.5: 멱등성 + 재결정 전환
+    #   - 같은 choice 재요청 → 멱등(기존 decision 그대로 반환)
+    #   - 다른 choice로 재요청 → 전환 UPDATE. 특히 보관함(queue)에 담은 항목을
+    #     '학습하기(learn_now)'로 활성화할 때, 이 전환이 없으면 learning_paths가
+    #     choice='learn_now'를 요구해 학습경로가 영영 생성되지 않는다.
     existing = (
         client.table("decisions")
-        .select("id")
+        .select("id, choice")
         .eq("review_id", body.review_id)
         .limit(1)
         .execute()
         .data
     )
     if existing:
-        return APIResponse(data={"decision_id": existing[0]["id"]})
+        existing_decision = existing[0]
+        if existing_decision.get("choice") == body.choice:
+            return APIResponse(data={"decision_id": existing_decision["id"]})
+        # 재결정: queue_timing은 choice에 맞춰 갱신(learn_now/ignore → None, queue → 검증된 값)
+        client.table("decisions").update({
+            "choice": body.choice,
+            "queue_timing": body.queue_timing,
+        }).eq("id", existing_decision["id"]).execute()
+        return APIResponse(data={"decision_id": existing_decision["id"]})
 
     # 1.6: INSERT (P4: race condition 완화 — concurrent INSERT 시 재조회로 멱등성 보장)
     try:

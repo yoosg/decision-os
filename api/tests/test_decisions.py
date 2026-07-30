@@ -198,8 +198,8 @@ def test_duplicate_decision_returns_existing_decision_id(monkeypatch):
         elif table_name == "projects":
             c.execute.return_value.data = [{"id": TEST_PROJECT_ID}]
         elif table_name == "decisions":
-            # 멱등성 SELECT: 기존 decision 존재
-            c.execute.return_value.data = [{"id": existing_decision_id}]
+            # 멱등성 SELECT: 동일 choice(learn_now)의 기존 decision 존재 → early return
+            c.execute.return_value.data = [{"id": existing_decision_id, "choice": "learn_now"}]
             # P20: INSERT가 실제로 호출되는지 추적
             original_insert = c.insert
             def tracked_insert(data: dict) -> MagicMock:
@@ -464,7 +464,7 @@ def test_idempotent_decision_does_not_log_engagement(monkeypatch):
     import middleware.auth as auth_module
     monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
 
-    mock_client = _mock_with_signal(decisions_first_call_data=[{"id": "existing-decision"}])
+    mock_client = _mock_with_signal(decisions_first_call_data=[{"id": "existing-decision", "choice": "learn_now"}])
     with patch("routers.decisions.get_supabase", return_value=mock_client), \
          patch("routers.decisions.log_engagement") as mock_log:
         from main import app
@@ -477,6 +477,75 @@ def test_idempotent_decision_does_not_log_engagement(monkeypatch):
 
     assert response.status_code == 201  # 라우터 데코레이터가 201 고정(멱등도 기존 decision 반환)
     mock_log.assert_not_called()
+
+
+def test_create_decision_transitions_queue_to_learn_now(monkeypatch):
+    """보관함(queue) 결정을 learn_now로 재요청 시 choice 전환(UPDATE)·queue_timing 초기화. INSERT 미호출.
+
+    버그: queue로 담은 항목은 나중에 '학습하기'를 눌러도 learn_now로 전환되지 않아
+    학습경로(choice=learn_now 필요)가 영영 생성되지 않았다.
+    """
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+
+    update_payload: dict = {}
+    insert_called = False
+    mock_client = MagicMock()
+
+    def table_side_effect(table_name: str) -> MagicMock:
+        nonlocal insert_called
+        c = MagicMock()
+        if table_name == "reviews":
+            ch = _chain()
+            ch.execute.return_value.data = [
+                {"id": TEST_REVIEW_ID, "project_id": TEST_PROJECT_ID, "signal_id": TEST_SIGNAL_ID}
+            ]
+            c.select.return_value = ch
+        elif table_name == "projects":
+            ch = _chain()
+            ch.execute.return_value.data = [{"id": TEST_PROJECT_ID}]
+            c.select.return_value = ch
+        elif table_name == "decisions":
+            select_ch = _chain()
+            select_ch.execute.return_value.data = [
+                {"id": TEST_DECISION_ID, "choice": "queue", "queue_timing": "this_week"}
+            ]
+            c.select.return_value = select_ch
+
+            def tracked_update(data: dict) -> MagicMock:
+                update_payload.update(data)
+                uch = _chain()
+                uch.execute.return_value.data = [{"id": TEST_DECISION_ID}]
+                return uch
+
+            c.update.side_effect = tracked_update
+
+            def tracked_insert(data: dict) -> MagicMock:
+                nonlocal insert_called
+                insert_called = True
+                ich = _chain()
+                ich.execute.return_value.data = [{"id": TEST_DECISION_ID}]
+                return ich
+
+            c.insert.side_effect = tracked_insert
+        return c
+
+    mock_client.table.side_effect = table_side_effect
+
+    with patch("routers.decisions.get_supabase", return_value=mock_client):
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/decisions",
+                json={"review_id": TEST_REVIEW_ID, "choice": "learn_now"},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 201
+    assert response.json()["data"]["decision_id"] == TEST_DECISION_ID
+    assert update_payload.get("choice") == "learn_now", "queue→learn_now 전환 UPDATE 필요"
+    assert update_payload.get("queue_timing") is None, "learn_now 전환 시 queue_timing 초기화"
+    assert not insert_called, "전환은 UPDATE로 처리 — INSERT 미호출"
 
 
 def test_decision_engagement_log_failure_does_not_block_201(monkeypatch):
