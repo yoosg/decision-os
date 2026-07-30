@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { kstToday } from "@/lib/date";
 import { SignalCard } from "./signal-card";
 import { ThreeDotLoading } from "./three-dot-loading";
 
@@ -62,7 +63,7 @@ export function DailyBriefContent({
   userId,
 }: DailyBriefContentProps) {
   const router = useRouter();
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = kstToday();
   const SEEN_KEY = `seen-signals-${todayISO}`;
 
   const [brief, setBrief] = useState<DailyBrief | null>(initialBrief);

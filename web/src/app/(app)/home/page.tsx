@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { kstToday } from "@/lib/date";
 import {
   DailyBriefContent,
   type DailyBrief,
@@ -12,7 +13,7 @@ export default async function HomePage() {
   const supabase = await createServerSupabaseClient();
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id ?? "";
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = kstToday();
 
   let brief: DailyBrief | null = null;
   let signals: SignalItem[] = [];

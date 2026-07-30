@@ -4,6 +4,7 @@ from datetime import date
 
 from core.config import settings
 from core.supabase import get_supabase
+from core.timeutil import today_kst
 from pipeline.clustering import cluster_and_filter
 from pipeline.collector.aggregator import run_collectors
 from pipeline.collector.stub import StubCollector
@@ -26,8 +27,9 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
 
     반환: {"brief_date": str, "signals": int, "briefs": int, "error": str | None}
     """
-    # P9: brief_date에서 today 파생 — 백필 시 date.today()와 불일치 방지
-    brief_date = brief_date or date.today().isoformat()
+    # P9: brief_date에서 today 파생 — 백필 시 today_kst()와 불일치 방지
+    # '하루' 경계는 KST 기준(웹/스케줄러와 통일) — today_kst() 사용
+    brief_date = brief_date or today_kst()
     today = date.fromisoformat(brief_date)
 
     pipeline_log(
@@ -202,7 +204,7 @@ def run_push_job(brief_date: str | None = None) -> dict:
 
     반환: {"brief_date": str, "sent": int, "error": str | None}
     """
-    brief_date = brief_date or date.today().isoformat()
+    brief_date = brief_date or today_kst()
 
     if not init_firebase(settings.firebase_service_account_json):
         pipeline_log(
@@ -236,7 +238,7 @@ def run_queue_reminder_job_entry(run_date: str | None = None) -> dict:
 
     반환: {"run_date": str, "sent": int, "error": str | None}
     """
-    run_date = run_date or date.today().isoformat()
+    run_date = run_date or today_kst()
 
     if not init_firebase(settings.firebase_service_account_json):
         pipeline_log(
@@ -269,7 +271,7 @@ def run_outcome_reminder_job_entry(run_date: str | None = None) -> dict:
 
     반환: {"run_date": str, "sent": int, "error": str | None}
     """
-    run_date = run_date or date.today().isoformat()
+    run_date = run_date or today_kst()
 
     if not init_firebase(settings.firebase_service_account_json):
         pipeline_log(

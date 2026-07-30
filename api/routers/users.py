@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -6,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from core.schemas import APIResponse
 from core.supabase import get_supabase
+from core.timeutil import today_kst
 from middleware.auth import get_current_user
 from pipeline.orchestrator import run_ondemand_brief
 
@@ -57,5 +57,5 @@ def update_profile(
     result = client.table("user_profiles").update(update_data).eq("id", user_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Profile not found")
-    background_tasks.add_task(run_ondemand_brief, user_id, datetime.now(timezone.utc).date().isoformat())
+    background_tasks.add_task(run_ondemand_brief, user_id, today_kst())
     return APIResponse(data=result.data[0])
