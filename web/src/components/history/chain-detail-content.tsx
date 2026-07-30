@@ -179,6 +179,25 @@ export function ChainDetailContent({ data }: Props) {
         // 미기록: learn_now 는 "미완료"(AC-5), queue/ignore 는 흐리게 통일 (설계 결정 1 / Task 9.6)
         <ChainNode color="var(--text-secondary)" glyph="?" typeLabel="OUTCOME" isLast dim={!isLearnNow}>
           <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-secondary)" }}>미완료</p>
+          {isLearnNow && (
+            <Link
+              href={`/home/review/${signal.id}/outcome`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                marginTop: "10px",
+                padding: "10px 16px",
+                borderRadius: "9999px",
+                background: "var(--accent-primary)",
+                color: "var(--accent-foreground, #FFFFFF)",
+                fontSize: "14px",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              결과 기록하기
+            </Link>
+          )}
         </ChainNode>
       )}
     </div>
