@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../history/providers/history_provider.dart';
 import '../providers/outcome_provider.dart';
 import '../providers/research_review_provider.dart';
 
@@ -68,6 +69,8 @@ class _OutcomeScreenState extends ConsumerState<OutcomeScreen> {
     if (!mounted) return;
 
     if (ok) {
+      // 결과 반영: 히스토리 탭이 IndexedStack으로 살아있어 캐시가 남으므로 명시적 무효화.
+      ref.invalidate(historyItemsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('결과가 기록됐습니다. 다음 브리핑에 반영됩니다.'),

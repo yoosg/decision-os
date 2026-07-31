@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../history/providers/history_provider.dart';
+import '../../queue/providers/queue_provider.dart';
 import '../providers/research_review_provider.dart';
 import '../widgets/review_sections.dart';
 
@@ -406,7 +408,7 @@ class _ReviewBodyState extends State<_ReviewBody> {
 
 // ─── _DynamicContextStickyBar ─────────────────────────────────────────────
 
-class _DynamicContextStickyBar extends StatefulWidget {
+class _DynamicContextStickyBar extends ConsumerStatefulWidget {
   final String signalId;
   final String reviewId;
   final bool enabled;
@@ -420,11 +422,11 @@ class _DynamicContextStickyBar extends StatefulWidget {
   });
 
   @override
-  State<_DynamicContextStickyBar> createState() =>
+  ConsumerState<_DynamicContextStickyBar> createState() =>
       _DynamicContextStickyBarState();
 }
 
-class _DynamicContextStickyBarState extends State<_DynamicContextStickyBar> {
+class _DynamicContextStickyBarState extends ConsumerState<_DynamicContextStickyBar> {
   bool _isSubmitting = false;
 
   Future<void> _postDecision({
@@ -458,6 +460,13 @@ class _DynamicContextStickyBarState extends State<_DynamicContextStickyBar> {
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Decision failed: ${response.statusCode}');
+    }
+
+    // 결정 반영: 탭 화면이 IndexedStack으로 살아있어 FutureProvider 캐시가 남으므로,
+    // 보관함·히스토리를 명시적으로 무효화해 다음 진입 시 최신 상태를 다시 불러온다.
+    if (mounted) {
+      ref.invalidate(queueItemsProvider);
+      ref.invalidate(historyItemsProvider);
     }
   }
 

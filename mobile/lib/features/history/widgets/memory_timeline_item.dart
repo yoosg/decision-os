@@ -174,6 +174,9 @@ class MemoryTimelineItem extends StatelessWidget {
             // 카드 (AC-3)
             Expanded(
               child: Container(
+                // 웹(memory-timeline-item paddingBottom:10)과 동일 — 카드 사이 간격.
+                // margin으로 주면 좌측 spine(stretch)은 이 간격 아래까지 이어져 연속선 유지.
+                margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceCard,
                   borderRadius: BorderRadius.circular(12),
