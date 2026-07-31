@@ -4,7 +4,26 @@
 > 상세 근거는 `_bmad-output/implementation-artifacts/`(스토리별 기록)와
 > `sprint-status.yaml`(완료 체크리스트)에 있다.
 >
-> 최종 갱신: 2026-07-30
+> 최종 갱신: 2026-07-31
+
+---
+
+## 0. Decision OS 소개
+
+**Decision OS는 정보를 보여주는 제품이 아니라, 사용자가 더 나은 결정을 내리도록 돕는 "의사결정 운영체제(OS)"다.**
+
+오늘날 문제는 정보의 부족이 아니다 — 검색·AI·뉴스레터로 정보는 넘친다. 진짜 어려운 건 **무엇을 믿고, 무엇을 무시하며, 무엇을 지금 행동으로 옮길지 결정하는 것**이다. Decision OS는 이 결정의 순간을 지원한다.
+
+그래서 모든 기능은 하나의 **불변 루프**를 따른다:
+
+```
+Event(사건) → Review(AI 검토) → Decision(결정) → Outcome(결과) → Memory(기억)
+```
+
+이 루프는 도메인이 바뀌어도 변하지 않으며, 그대로 데이터 구조에 대응된다 — `signals`(Event) → `reviews` → `decisions` → `outcomes` → `memories`. 기억은 다음 사건의 검토·추천을 개인화하는 데 되먹임되어, 쓸수록 나에게 맞춰진다.
+
+- **플랫폼 = Playbook 위에 쌓는 구조**: 공통 결정 루프 위에 도메인별 "Playbook"을 얹는다. **AI Research**가 첫 번째 Playbook(현재 라이브)이고, **Insurance**·Career·Investment 등으로 확장 가능하도록 설계됐다.
+- **AI Research Playbook**은 이 루프를 "매일 쏟아지는 AI 기술 소식 중 무엇을 배울지"라는 결정 문제에 적용한 것이다.
 
 ---
 
@@ -56,17 +75,9 @@
 
 ## 4. 핵심 사용자 흐름 (데이터가 흐르는 순서)
 
-```
-[수집] signals  ──(daily_brief_signals)──►  daily_briefs  ──►  홈에서 브리핑 확인
-   │                                                                │
-   └──► reviews(AI 리뷰) ──► decisions(결정) ──┬──► learning_paths(학습 자료)
-                                               │
-                                               ├──► outcomes(학습 결과 기록)
-                                               │
-                                               └──► memories(기억으로 축적, 벡터 임베딩)
-                                                          │
-                              engagement_events(노출/열람/결정 로깅) ──► 추천기 v2가 학습에 활용
-```
+![Decision OS 핵심 사용자 흐름](./decision-os-flow.png)
+
+> 다이어그램 원본: [`decision-os-flow.mmd`](./decision-os-flow.mmd) (Mermaid). 점선은 되먹임 루프 — 기억(memories)이 RAG로 다음 브리핑을 개인화하고, 행동 로그(engagement_events)가 추천기 튜닝에 쓰인다.
 
 1. **signals** — 외부에서 수집한 AI 기술 소식(원천 콘텐츠).
 2. **daily_briefs** + **daily_brief_signals** — 사용자별로 오늘의 브리핑에 어떤 시그널을 어떤 순서/점수로 담았는지.

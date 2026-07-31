@@ -1,0 +1,25 @@
+flowchart TD
+    A["signals · 기술 소식<br/>수집 · 클러스터링 · 정규화"]
+    B["daily_briefs · 오늘의 브리핑<br/>사용자별 큐레이션"]
+    C["홈에서 브리핑 확인"]
+    D["reviews · AI 개인화 리뷰"]
+    E["decisions · 결정<br/>지금 학습 / 나중에 / 관심 없음"]
+    F["learning_paths · 학습 자료"]
+    G["outcomes · 학습 결과 기록"]
+    H["memories · 기억 축적<br/>요약 + 벡터 임베딩"]
+
+    A -->|daily_brief_signals| B
+    B --> C
+    C --> D
+    D --> E
+    E -->|지금 학습| F
+    E -->|학습 후| G
+    G --> H
+    H -.->|RAG 개인화 가점| B
+    C -. engagement_events 로깅 .-> I["추천기 v2<br/>측정 · 가중치 튜닝"]
+    I -.-> B
+
+    classDef content fill:#EEF2FF,stroke:#6366F1,color:#1e1b4b;
+    classDef loop fill:#ECFDF5,stroke:#10B981,color:#064e3b;
+    class A,B,C content;
+    class F,G,H,I loop;
