@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/fcm_provider.dart';
+
+// Supabase(bcrypt)는 72바이트 초과 비밀번호를 잘라내므로 상한을 72자로 맞춘다.
+const int _passwordMaxLength = 72;
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -15,6 +19,7 @@ class SignUpScreen extends ConsumerStatefulWidget {
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   bool _isLoading = false;
   String? _error;
 
@@ -22,6 +27,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -62,9 +68,29 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               TextField(
                 controller: _passwordCtrl,
                 obscureText: true,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_passwordMaxLength),
+                ],
                 decoration: const InputDecoration(
                   labelText: '비밀번호 (8자 이상)',
                   hintText: '비밀번호 (8자 이상)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _confirmPasswordCtrl,
+                obscureText: true,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_passwordMaxLength),
+                ],
+                onSubmitted: (_) => _isLoading ? null : _signUp(),
+                decoration: const InputDecoration(
+                  labelText: '비밀번호 확인',
+                  hintText: '비밀번호를 다시 입력해 주세요',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
@@ -133,6 +159,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Future<void> _signUp() async {
     if (_passwordCtrl.text.length < 8) {
       setState(() => _error = '비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+    if (_passwordCtrl.text.length > _passwordMaxLength) {
+      setState(() => _error = '비밀번호는 $_passwordMaxLength자 이하여야 합니다.');
+      return;
+    }
+    if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+      setState(() => _error = '비밀번호가 일치하지 않습니다.');
       return;
     }
     setState(() {

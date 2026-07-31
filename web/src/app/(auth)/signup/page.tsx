@@ -5,10 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 
+// Supabase(bcrypt)는 72바이트 초과 비밀번호를 잘라내므로 상한을 72자로 맞춘다.
+const PASSWORD_MAX_LENGTH = 72;
+
 export default function SignUpPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -16,6 +20,14 @@ export default function SignUpPage() {
     e.preventDefault();
     if (password.length < 8) {
       setError("비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (password.length > PASSWORD_MAX_LENGTH) {
+      setError(`비밀번호는 ${PASSWORD_MAX_LENGTH}자 이하여야 합니다.`);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("비밀번호가 일치하지 않습니다.");
       return;
     }
     setIsLoading(true);
@@ -94,6 +106,22 @@ export default function SignUpPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={8}
+              maxLength={PASSWORD_MAX_LENGTH}
+              style={inputStyle}
+            />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>비밀번호 확인</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="비밀번호를 다시 입력해 주세요"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              maxLength={PASSWORD_MAX_LENGTH}
               style={inputStyle}
             />
           </label>
