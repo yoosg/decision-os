@@ -167,7 +167,13 @@ AI Research Playbook은 Epic 1~6이 dev + 코드리뷰까지 **전부 완료(don
 
 Postgres 14개 테이블, 전부 Row-Level Security 활성. 뿌리는 사용자(`auth.users`)와 콘텐츠(`signals`) 둘.
 
+**관계 개요 (Mermaid)**
+
 ![Decision OS ERD](docs/decision-os-erd.png)
+
+**실제 스키마 (Supabase)**
+
+![Supabase 스키마](docs/media/supabase-schema.png)
 
 **결정 루프 축**: `signals → reviews → decisions → outcomes → memories`
 **브리핑 축**: `signals → daily_brief_signals → daily_briefs`
