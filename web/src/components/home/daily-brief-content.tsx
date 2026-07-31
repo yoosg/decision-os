@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { kstToday } from "@/lib/date";
@@ -78,44 +78,47 @@ export function DailyBriefContent({
   });
   const [isRetrying, setIsRetrying] = useState(false);
 
+  const fetchSignals = useCallback(async (briefId: string) => {
+    const supabase = createClient();
+    const { data: signalRows } = await supabase
+      .from("daily_brief_signals")
+      .select(`signal_id, position, signals(id, title, summary)`)
+      .eq("daily_brief_id", briefId)
+      .order("position", { ascending: true });
+
+    if (!signalRows || signalRows.length === 0) return;
+
+    const signalIds = signalRows.map((r) => r.signal_id as string);
+    const { data: sourcesData } = await supabase
+      .from("signal_sources")
+      .select("signal_id")
+      .in("signal_id", signalIds);
+
+    const sourceCountMap: Record<string, number> = {};
+    for (const row of sourcesData ?? []) {
+      const sid = row.signal_id as string;
+      sourceCountMap[sid] = (sourceCountMap[sid] ?? 0) + 1;
+    }
+
+    setSignals(
+      signalRows.map((row) => {
+        const sig = row.signals as unknown as { id: string; title: string; summary: string | null } | null;
+        return {
+          signalId: row.signal_id as string,
+          title: sig?.title ?? "",
+          summary: sig?.summary ?? null,
+          sourceCount: sourceCountMap[row.signal_id as string] ?? 5,
+          position: row.position as number,
+        };
+      })
+    );
+  }, []);
+
+  // Realtime: 브리핑 상태 변화를 즉시 반영.
+  // ⚠️ postgres_changes의 filter는 단일 조건만 지원한다 — user_id만 걸고,
+  //    brief_date는 콜백에서 클라이언트 검사한다(이전엔 &로 두 조건을 넣어 매칭 실패했음).
   useEffect(() => {
     const supabase = createClient();
-
-    const fetchSignals = async (briefId: string) => {
-      const { data: signalRows } = await supabase
-        .from("daily_brief_signals")
-        .select(`signal_id, position, signals(id, title, summary)`)
-        .eq("daily_brief_id", briefId)
-        .order("position", { ascending: true });
-
-      if (!signalRows || signalRows.length === 0) return;
-
-      const signalIds = signalRows.map((r) => r.signal_id as string);
-      const { data: sourcesData } = await supabase
-        .from("signal_sources")
-        .select("signal_id")
-        .in("signal_id", signalIds);
-
-      const sourceCountMap: Record<string, number> = {};
-      for (const row of sourcesData ?? []) {
-        const sid = row.signal_id as string;
-        sourceCountMap[sid] = (sourceCountMap[sid] ?? 0) + 1;
-      }
-
-      setSignals(
-        signalRows.map((row) => {
-          const sig = row.signals as unknown as { id: string; title: string; summary: string | null } | null;
-          return {
-            signalId: row.signal_id as string,
-            title: sig?.title ?? "",
-            summary: sig?.summary ?? null,
-            sourceCount: sourceCountMap[row.signal_id as string] ?? 5,
-            position: row.position as number,
-          };
-        })
-      );
-    };
-
     const channel = supabase
       .channel("daily-brief-home")
       .on(
@@ -124,16 +127,15 @@ export function DailyBriefContent({
           event: "*",
           schema: "public",
           table: "daily_briefs",
-          filter: `user_id=eq.${userId}&brief_date=eq.${todayISO}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           if (payload.eventType === "DELETE") return;
           const row = payload.new as DailyBrief;
-          if (row.brief_date === todayISO) {
-            setBrief(row);
-            if (row.status === "completed") {
-              fetchSignals(row.id);
-            }
+          if (row.brief_date !== todayISO) return;
+          setBrief(row);
+          if (row.status === "completed") {
+            fetchSignals(row.id);
           }
         }
       )
@@ -142,7 +144,47 @@ export function DailyBriefContent({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, todayISO]);
+  }, [userId, todayISO, fetchSignals]);
+
+  // 폴백 폴링: 온보딩 직후처럼 브리핑이 아직 생성 중이면(Realtime 이벤트를 놓쳐도)
+  // 완료될 때까지 주기적으로 재조회해 새로고침 없이 표시한다.
+  const briefStatus = brief?.status;
+  useEffect(() => {
+    const isGenerating =
+      !briefStatus || briefStatus === "pending" || briefStatus === "processing";
+    if (!isGenerating) return;
+
+    const supabase = createClient();
+    let attempts = 0;
+    const MAX_ATTEMPTS = 40; // 약 2분 (3초 간격)
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const poll = async () => {
+      attempts += 1;
+      const { data } = await supabase
+        .from("daily_briefs")
+        .select("id, user_id, brief_date, status, error_message, generated_at")
+        .eq("user_id", userId)
+        .eq("brief_date", todayISO)
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        const row = data as DailyBrief;
+        setBrief(row);
+        if (row.status === "completed") {
+          await fetchSignals(row.id);
+        }
+      }
+      if (attempts >= MAX_ATTEMPTS && timer) clearInterval(timer);
+    };
+
+    poll(); // 즉시 1회
+    timer = setInterval(poll, 3000);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [briefStatus, userId, todayISO, fetchSignals]);
 
   const markSeen = (signalId: string) => {
     const next = new Set([...seenIds, signalId]);
