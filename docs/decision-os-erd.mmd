@@ -1,20 +1,135 @@
 erDiagram
-    auth_users ||--|| user_profiles : "프로필"
-    auth_users ||--o{ user_devices : "기기토큰"
-    auth_users ||--o{ projects : "프로젝트"
-    auth_users ||--o{ daily_briefs : "브리핑"
-    auth_users ||--o{ memories : "기억"
-    auth_users ||--o{ engagement_events : "행동로그"
-    projects ||--o{ reviews : "리뷰"
-    projects ||--o{ activities : "활동"
-    signals ||--o{ signal_sources : "출처"
-    signals ||--o{ reviews : "리뷰대상"
-    signals ||--o{ daily_brief_signals : "브리핑수록"
-    signals ||--o{ learning_paths : "학습대상"
-    signals ||--o{ engagement_events : "행동대상"
-    daily_briefs ||--o{ daily_brief_signals : "수록시그널"
-    daily_briefs ||--o{ engagement_events : "브리핑맥락"
-    reviews ||--|| decisions : "결정"
-    decisions ||--o| learning_paths : "학습자료"
-    decisions ||--o{ outcomes : "결과"
-    decisions ||--o{ memories : "기억출처"
+    auth_users ||--|| user_profiles : ""
+    auth_users ||--o{ user_devices : ""
+    auth_users ||--o{ projects : ""
+    auth_users ||--o{ daily_briefs : ""
+    auth_users ||--o{ memories : ""
+    auth_users ||--o{ engagement_events : ""
+    projects ||--o{ reviews : ""
+    projects ||--o{ activities : ""
+    signals ||--o{ signal_sources : ""
+    signals ||--o{ reviews : ""
+    signals ||--o{ daily_brief_signals : ""
+    signals ||--o{ learning_paths : ""
+    signals ||--o{ engagement_events : ""
+    daily_briefs ||--o{ daily_brief_signals : ""
+    daily_briefs ||--o{ engagement_events : ""
+    reviews ||--o| decisions : ""
+    decisions ||--o| learning_paths : ""
+    decisions ||--o{ outcomes : ""
+    decisions ||--o{ memories : ""
+
+    auth_users {
+        uuid id PK
+    }
+    user_profiles {
+        uuid id PK
+        text role
+        text experience_level
+        array tech_stack
+        text project_goal
+        array interests
+        int daily_learning_time_min
+        bool onboarding_completed
+    }
+    user_devices {
+        uuid id PK
+        uuid user_id FK
+        text fcm_token
+        text platform
+    }
+    projects {
+        uuid id PK
+        uuid user_id FK
+        text playbook_type
+        text name
+    }
+    signals {
+        uuid id PK
+        text technology_name
+        text title
+        text summary
+        date signal_date
+        text status
+        timestamptz published_at
+        int popularity
+        smallint source_authority
+        text cluster_key
+    }
+    signal_sources {
+        uuid id PK
+        uuid signal_id FK
+        text source_type
+        text url
+        text title
+    }
+    daily_briefs {
+        uuid id PK
+        uuid user_id FK
+        date brief_date
+        text status
+        timestamptz generated_at
+    }
+    daily_brief_signals {
+        uuid daily_brief_id PK,FK
+        uuid signal_id PK,FK
+        float relevance_score
+        int position
+    }
+    reviews {
+        uuid id PK
+        uuid project_id FK
+        uuid signal_id FK
+        text playbook_type
+        text review_type
+        text status
+        text bar_gate_override
+        jsonb context_snapshot
+        jsonb result
+    }
+    decisions {
+        uuid id PK
+        uuid review_id FK
+        text choice
+        text queue_timing
+        text memo
+    }
+    learning_paths {
+        uuid id PK
+        uuid decision_id FK
+        uuid signal_id FK
+        jsonb resources
+        text status
+    }
+    outcomes {
+        uuid id PK
+        uuid decision_id FK
+        text status
+        bool useful
+        int actual_learning_time_min
+        text applied_project_note
+        text memo
+    }
+    memories {
+        uuid id PK
+        uuid user_id FK
+        text memory_type
+        text summary
+        vector embedding
+        uuid source_decision_id FK
+    }
+    activities {
+        uuid id PK
+        uuid project_id FK
+        text activity_type
+        jsonb payload
+    }
+    engagement_events {
+        uuid id PK
+        uuid user_id FK
+        uuid signal_id FK
+        uuid daily_brief_id FK
+        text event_type
+        text variant
+        jsonb metadata
+    }

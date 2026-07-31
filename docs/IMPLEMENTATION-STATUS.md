@@ -117,37 +117,7 @@ Supabase Postgres, 총 **14개 테이블**(모두 RLS 활성화). 사용자 식�
 
 ![Decision OS ERD](./decision-os-erd.png)
 
-<details>
-<summary>Mermaid 소스 (편집용)</summary>
-
-```mermaid
-erDiagram
-    auth_users ||--|| user_profiles : "프로필"
-    auth_users ||--o{ user_devices : "기기토큰"
-    auth_users ||--o{ projects : "프로젝트"
-    auth_users ||--o{ daily_briefs : "브리핑"
-    auth_users ||--o{ memories : "기억"
-    auth_users ||--o{ engagement_events : "행동로그"
-
-    projects ||--o{ reviews : "리뷰"
-    projects ||--o{ activities : "활동"
-
-    signals ||--o{ signal_sources : "출처"
-    signals ||--o{ reviews : "리뷰대상"
-    signals ||--o{ daily_brief_signals : "브리핑수록"
-    signals ||--o{ learning_paths : "학습대상"
-    signals ||--o{ engagement_events : "행동대상"
-
-    daily_briefs ||--o{ daily_brief_signals : "수록시그널"
-    daily_briefs ||--o{ engagement_events : "브리핑맥락"
-
-    reviews ||--|| decisions : "결정(1:1)"
-    decisions ||--o| learning_paths : "학습자료"
-    decisions ||--o{ outcomes : "결과"
-    decisions ||--o{ memories : "기억출처"
-```
-
-</details>
+> 현재 DB 스키마 기준 — 14개 테이블 + 컬럼(타입·PK/FK) + 관계.
 
 > 다이어그램 원본은 [`decision-os-erd.mmd`](./decision-os-erd.mmd), 렌더 이미지는 [`decision-os-erd.png`](./decision-os-erd.png).
 
