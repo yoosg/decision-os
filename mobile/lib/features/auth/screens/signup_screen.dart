@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../onboarding/providers/onboarding_provider.dart';
 import '../providers/fcm_provider.dart';
 
 // Supabase(bcrypt)는 72바이트 초과 비밀번호를 잘라내므로 상한을 72자로 맞춘다.
@@ -186,6 +188,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       // FCM 토큰 등록 (best-effort)
       ref.read(registerFcmTokenProvider.future).ignore();
       // handle_new_user() 트리거가 user_profiles 생성 (onboarding_completed: false)
+      // 라우터 게이트가 참조하는 플래그를 리셋 — 기기 전역 pref에 이전 사용자의 true가
+      // 남아있으면 신규 가입이 /onboarding → /home 으로 튕기는 문제를 막는다.
+      ref.read(onboardingCompletedProvider.notifier).state = false;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(kOnboardingCompletedKey, false);
       if (mounted) context.go('/onboarding');
     } on AuthException catch (e) {
       setState(() => _error = _mapAuthError(e.message));
