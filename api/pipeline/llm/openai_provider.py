@@ -1,5 +1,3 @@
-import json
-
 from openai import OpenAI, OpenAIError
 
 from pipeline.llm.base import (
