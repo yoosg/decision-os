@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Literal로 강제: 오타가 조용히 잘못된 경로로 빠지지 않게 로드 시 검증.
     llm_provider: Literal["openai", "gemini"] = "openai"
     gemini_api_key: str = Field(default="", repr=False)
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-flash-latest"  # 2.5-flash는 신규 사용자 차단(404) → latest alias
     # 프리티어 rate-limit 방어: 429 시 지수 백오프 재시도 횟수 + 호출 간 최소 간격(초)
     gemini_max_retries: int = 4
     gemini_request_delay_sec: float = 0.0

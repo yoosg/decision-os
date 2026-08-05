@@ -10,7 +10,7 @@ def test_llm_provider_defaults_to_openai():
         s = Settings(_env_file=None)
     assert s.llm_provider == "openai"
     assert s.openai_model == "gpt-4o-mini"  # 비용 절감: 기본 모델을 mini로
-    assert s.gemini_model == "gemini-2.5-flash"
+    assert s.gemini_model == "gemini-flash-latest"
     assert s.gemini_max_retries == 4
     assert s.gemini_request_delay_sec == 0.0
 
