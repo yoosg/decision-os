@@ -205,8 +205,7 @@ def test_run_memory_manager_from_outcome_delegates_to_pipeline(monkeypatch):
     calls = []
     monkeypatch.setattr(memory_manager, "get_supabase", lambda: "the-client")
     monkeypatch.setattr(
-        memory_manager, "OpenAIProvider",
-        lambda api_key, model, embedding_model: f"the-llm({api_key},{model},{embedding_model})",
+        memory_manager, "get_llm_provider", lambda: "the-llm",
     )
     monkeypatch.setattr(
         memory_manager, "_execute_memory_extraction", lambda *args: calls.append(args),
@@ -218,7 +217,7 @@ def test_run_memory_manager_from_outcome_delegates_to_pipeline(monkeypatch):
     outcome_id, decision_id, client, llm = calls[0]
     assert (outcome_id, decision_id) == (TEST_OUTCOME_ID, TEST_DECISION_ID)
     assert client == "the-client"
-    assert llm.startswith("the-llm(")
+    assert llm == "the-llm"
 
 
 # ─── 7.7: OpenAIProvider.extract_memory() ────────────────────────────────────

@@ -4,9 +4,9 @@ import logging
 from supabase import Client
 
 from pipeline.llm.base import LLMProvider, MemoryContext
-from pipeline.llm.openai_provider import ALLOWED_MEMORY_TYPES, OpenAIProvider
+from pipeline.llm.factory import get_llm_provider
+from pipeline.llm.openai_provider import ALLOWED_MEMORY_TYPES
 from pipeline.logger import pipeline_log
-from core.config import settings
 from core.supabase import get_supabase
 
 _log = logging.getLogger(__name__)
@@ -98,9 +98,5 @@ def _execute_memory_extraction(outcome_id: str, decision_id: str, client: Client
 def run_memory_manager_from_outcome(outcome_id: str, decision_id: str) -> None:
     """BackgroundTask 진입점. Outcome INSERT 성공 직후 트리거된다."""
     client = get_supabase()
-    llm = OpenAIProvider(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model,
-        embedding_model=settings.openai_embedding_model,
-    )
+    llm = get_llm_provider()
     _execute_memory_extraction(outcome_id, decision_id, client, llm)

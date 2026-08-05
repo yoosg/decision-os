@@ -70,7 +70,7 @@ def test_send_chat_message_returns_200_with_reply(monkeypatch):
 
     mock_client = _base_mock()
 
-    from routers.chat import get_llm_provider
+    from routers.chat import _cached_llm_provider as get_llm_provider
     from main import app
 
     app.dependency_overrides[get_llm_provider] = lambda: mock_llm
@@ -101,7 +101,7 @@ def test_chat_with_other_users_signal_returns_404(monkeypatch):
     mock_llm = MagicMock()
     mock_client = _base_mock(project_data=[])
 
-    from routers.chat import get_llm_provider
+    from routers.chat import _cached_llm_provider as get_llm_provider
     from main import app
 
     app.dependency_overrides[get_llm_provider] = lambda: mock_llm
@@ -129,7 +129,7 @@ def test_chat_with_empty_message_returns_422(monkeypatch):
     mock_llm = MagicMock()
     mock_client = _base_mock()
 
-    from routers.chat import get_llm_provider
+    from routers.chat import _cached_llm_provider as get_llm_provider
     from main import app
 
     app.dependency_overrides[get_llm_provider] = lambda: mock_llm
@@ -160,7 +160,7 @@ def test_chat_llm_error_returns_503(monkeypatch):
 
     mock_client = _base_mock()
 
-    from routers.chat import get_llm_provider
+    from routers.chat import _cached_llm_provider as get_llm_provider
     from main import app
 
     app.dependency_overrides[get_llm_provider] = lambda: mock_llm
@@ -196,7 +196,7 @@ def test_chat_without_completed_review_uses_null_payload(monkeypatch):
     mock_llm.chat.side_effect = capture_chat
     mock_client = _base_mock(review_data=[])
 
-    from routers.chat import get_llm_provider
+    from routers.chat import _cached_llm_provider as get_llm_provider
     from main import app
 
     app.dependency_overrides[get_llm_provider] = lambda: mock_llm

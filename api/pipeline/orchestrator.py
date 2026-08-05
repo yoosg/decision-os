@@ -14,7 +14,7 @@ from pipeline.fcm import (
     run_outcome_reminder_job,
     run_queue_reminder_job,
 )
-from pipeline.llm.openai_provider import OpenAIProvider
+from pipeline.llm.factory import get_llm_provider
 from pipeline.logger import pipeline_log
 from pipeline.normalizer import normalize
 from pipeline.recommender import create_daily_brief_for_user, run_recommender
@@ -40,11 +40,7 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
     )
 
     client = get_supabase()
-    llm = OpenAIProvider(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model,
-        embedding_model=settings.openai_embedding_model,
-    )
+    llm = get_llm_provider()
 
     try:
         # 1. Collect — Story 6.1: collector_mode에 따라 실 수집기 / stub 폴백 분기
@@ -122,11 +118,7 @@ def run_ondemand_brief(user_id: str, brief_date: str) -> None:
     # Story 5.4: 온디맨드 brief도 Memory RAG 개인화 적용 (embedding_model 일치 필수).
     # Provider 구성 실패(예: API 키 미설정) 시 llm=None → 콜드 스타트 폴백으로 안전 저하(AD-5).
     try:
-        llm = OpenAIProvider(
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
-            embedding_model=settings.openai_embedding_model,
-        )
+        llm = get_llm_provider()
     except Exception:
         llm = None
     _deleted_existing = False

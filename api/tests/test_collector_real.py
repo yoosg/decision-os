@@ -305,7 +305,7 @@ def test_aggregator_uses_certifi_and_timeout(monkeypatch):
 
 def _stub_orchestrator_downstream(monkeypatch, orch):
     monkeypatch.setattr(orch, "get_supabase", lambda: MagicMock())
-    monkeypatch.setattr(orch, "OpenAIProvider", lambda **kw: MagicMock())
+    monkeypatch.setattr(orch, "get_llm_provider", lambda: MagicMock())
     monkeypatch.setattr(orch, "normalize", lambda *a, **k: [])
     monkeypatch.setattr(orch, "build_signals", lambda *a, **k: [])
     monkeypatch.setattr(orch, "run_recommender", lambda *a, **k: 0)

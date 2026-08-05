@@ -5,9 +5,8 @@ from datetime import datetime, timezone
 from supabase import Client
 
 from pipeline.llm.base import LLMProvider, LLMProviderError, ReviewContext, REQUIRED_SECTIONS
-from pipeline.llm.openai_provider import OpenAIProvider
+from pipeline.llm.factory import get_llm_provider
 from pipeline.logger import pipeline_log
-from core.config import settings
 from core.supabase import get_supabase
 
 _log = logging.getLogger(__name__)
@@ -191,14 +190,7 @@ def run_review_from_pending(review_id: str, signal_id: str, project_id: str) -> 
     step 2(processing 전이)부터 시작한다.
     """
     client = get_supabase()
-    # On-demand 리뷰 생성도 배치와 동일하게 api_key/model을 주입해 Provider를 구성한다.
-    # (기존 인자 없는 OpenAIProvider() 호출은 TypeError로 BackgroundTask가 즉시 실패 → 리뷰가
-    #  pending에 영구히 멈추는 버그였음. 배치 경로 orchestrator.py와 동일 패턴으로 통일.)
-    llm = OpenAIProvider(
-        api_key=settings.openai_api_key,
-        model=settings.openai_model,
-        embedding_model=settings.openai_embedding_model,
-    )
+    llm = get_llm_provider()
     _execute_review_pipeline(review_id, signal_id, project_id, client, llm)
 
 

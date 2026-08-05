@@ -4,12 +4,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
-from core.config import settings
 from core.schemas import APIResponse
 from core.supabase import get_supabase
 from middleware.auth import get_current_user
 from pipeline.llm.base import ChatContext, LLMProviderError
-from pipeline.llm.openai_provider import OpenAIProvider
+from pipeline.llm.factory import get_llm_provider
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -27,15 +26,15 @@ class ChatMessageRequest(BaseModel):
 
 
 @lru_cache(maxsize=1)
-def get_llm_provider() -> OpenAIProvider:
-    return OpenAIProvider(api_key=settings.openai_api_key)
+def _cached_llm_provider():
+    return get_llm_provider()
 
 
 @router.post("/messages", response_model=APIResponse)
 def send_chat_message(
     body: ChatMessageRequest,
     user_id: Annotated[str, Depends(get_current_user)],
-    llm: OpenAIProvider = Depends(get_llm_provider),
+    llm=Depends(_cached_llm_provider),
 ) -> APIResponse:
     client = get_supabase()
 

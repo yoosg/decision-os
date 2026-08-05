@@ -187,7 +187,7 @@ def test_run_review_from_pending_completes():
     mock_client.table.side_effect = table_side_effect
 
     with patch("pipeline.reviewer.get_supabase", return_value=mock_client), \
-         patch("pipeline.reviewer.OpenAIProvider", return_value=MockLLMProvider()):
+         patch("pipeline.reviewer.get_llm_provider", return_value=MockLLMProvider()):
         from pipeline.reviewer import run_review_from_pending
         run_review_from_pending(TEST_REVIEW_ID, TEST_SIGNAL_ID, TEST_PROJECT_ID)
 
@@ -228,7 +228,7 @@ def test_run_review_from_pending_sets_failed_on_error():
     mock_client.table.side_effect = table_side_effect
 
     with patch("pipeline.reviewer.get_supabase", return_value=mock_client), \
-         patch("pipeline.reviewer.OpenAIProvider", return_value=MockLLMProvider(raise_error=True)):
+         patch("pipeline.reviewer.get_llm_provider", return_value=MockLLMProvider(raise_error=True)):
         from pipeline.reviewer import run_review_from_pending
         run_review_from_pending(TEST_REVIEW_ID, TEST_SIGNAL_ID, TEST_PROJECT_ID)
 

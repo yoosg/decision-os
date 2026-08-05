@@ -460,7 +460,7 @@ def test_run_daily_pipeline_calls_stages_in_order():
         patch("pipeline.orchestrator.review_all_for_signal", mock_review),
         patch("pipeline.orchestrator.run_recommender", mock_recommend),
         patch("pipeline.orchestrator.get_supabase", return_value=MagicMock()),
-        patch("pipeline.orchestrator.OpenAIProvider", return_value=MagicMock()),
+        patch("pipeline.orchestrator.get_llm_provider", return_value=MagicMock()),
     ):
         result = pipeline.orchestrator.run_daily_pipeline("2026-07-24")
 
@@ -487,7 +487,7 @@ def test_run_daily_pipeline_brief_date_derives_today():
         patch("pipeline.orchestrator.build_signals", return_value=[]),
         patch("pipeline.orchestrator.run_recommender", return_value=0),
         patch("pipeline.orchestrator.get_supabase", return_value=MagicMock()),
-        patch("pipeline.orchestrator.OpenAIProvider", return_value=MagicMock()),
+        patch("pipeline.orchestrator.get_llm_provider", return_value=MagicMock()),
     ):
         pipeline.orchestrator.run_daily_pipeline("2026-01-01")
 

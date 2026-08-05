@@ -297,7 +297,7 @@ def test_run_learning_path_from_pending_delegates_to_pipeline(monkeypatch):
     calls = []
     monkeypatch.setattr(coach, "get_supabase", lambda: "the-client")
     monkeypatch.setattr(
-        coach, "OpenAIProvider", lambda api_key, model: f"the-llm({api_key},{model})"
+        coach, "get_llm_provider", lambda: "the-llm"
     )
     monkeypatch.setattr(
         coach,
@@ -311,7 +311,7 @@ def test_run_learning_path_from_pending_delegates_to_pipeline(monkeypatch):
     lp_id, dec_id, sig_id, client, llm = calls[0]
     assert (lp_id, dec_id, sig_id) == (TEST_LEARNING_PATH_ID, TEST_DECISION_ID, TEST_SIGNAL_ID)
     assert client == "the-client"
-    assert llm.startswith("the-llm(")
+    assert llm == "the-llm"
 
 
 def test_execute_learning_path_pipeline_completes():

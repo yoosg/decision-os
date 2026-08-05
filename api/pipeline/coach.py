@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from supabase import Client
 
 from pipeline.llm.base import LearningPathContext, LLMProvider, LLMProviderError
-from pipeline.llm.openai_provider import LEARNING_PATH_RESOURCE_TYPES, OpenAIProvider
+from pipeline.llm.factory import get_llm_provider
+from pipeline.llm.openai_provider import LEARNING_PATH_RESOURCE_TYPES
 from pipeline.logger import pipeline_log
-from core.config import settings
 from core.supabase import get_supabase
 
 _log = logging.getLogger(__name__)
@@ -129,5 +129,5 @@ def run_learning_path_from_pending(learning_path_id: str, decision_id: str, sign
     processing 전이부터 시작한다.
     """
     client = get_supabase()
-    llm = OpenAIProvider(api_key=settings.openai_api_key, model=settings.openai_model)
+    llm = get_llm_provider()
     _execute_learning_path_pipeline(learning_path_id, decision_id, signal_id, client, llm)
