@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from core.schemas import APIResponse
 from core.supabase import get_supabase
 from middleware.auth import get_current_user
-from pipeline.llm.base import ChatContext, LLMProviderError
+from pipeline.llm.base import ChatContext, LLMProvider, LLMProviderError
 from pipeline.llm.factory import get_llm_provider
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -26,7 +26,7 @@ class ChatMessageRequest(BaseModel):
 
 
 @lru_cache(maxsize=1)
-def _cached_llm_provider():
+def _cached_llm_provider() -> LLMProvider:
     return get_llm_provider()
 
 
@@ -34,7 +34,7 @@ def _cached_llm_provider():
 def send_chat_message(
     body: ChatMessageRequest,
     user_id: Annotated[str, Depends(get_current_user)],
-    llm=Depends(_cached_llm_provider),
+    llm: LLMProvider = Depends(_cached_llm_provider),
 ) -> APIResponse:
     client = get_supabase()
 

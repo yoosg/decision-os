@@ -67,7 +67,7 @@ class Settings(BaseSettings):
             )
         if not self.openai_api_key:
             warnings.warn(
-                "OPENAI_API_KEY is not set — LLM calls will fail",
+                "OPENAI_API_KEY is not set — OpenAI LLM/embedding calls will fail",
                 RuntimeWarning,
                 stacklevel=2,
             )
