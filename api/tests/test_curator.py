@@ -88,3 +88,22 @@ def test_dropped_topic_is_logged():
 def test_safe_degrade_on_empty_input():
     # 빈 입력은 토글/llm 상태와 무관하게 전량(=빈) 통과, 예외 없음.
     assert curate_learnability([], MagicMock(), brief_date="d") == []
+
+
+def test_distinct_clusters_with_same_name_converge_for_normalize():
+    # 의도된 계약(문서주석 참고): 서로 다른 cluster_key 토픽이 같은 name을 받으면
+    # curator는 둘 다 그 name으로 개명한다 → 이후 normalize가 technology_name 기준으로
+    # 하나의 signal로 병합(중복제거). curator 단계에서는 아직 두 기사 모두 남아있다.
+    articles = [
+        _art("General AI", "vLLM 0.6 릴리스", "u0", "ck0"),
+        _art("vLLM stuff", "vLLM 성능 개선 글", "u1", "ck1"),
+    ]
+    llm = _llm([
+        {"id": 0, "keep": True, "category": "tool_update", "name": "vLLM"},
+        {"id": 1, "keep": True, "category": "tool_update", "name": "vLLM"},
+    ])
+    with patch("pipeline.curator.settings") as s:
+        s.learnability_filter_enabled = True
+        out = curate_learnability(articles, llm, brief_date="d")
+    assert len(out) == 2
+    assert {a.technology_name for a in out} == {"vLLM"}

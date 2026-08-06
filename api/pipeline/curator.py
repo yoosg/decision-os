@@ -4,6 +4,12 @@ clustering 뒤·normalize 앞. cluster_key 단위 토픽으로 묶어 LLM 배치
 keep/drop + 깨끗한 이름을 받아, 뉴스/오피니언 토픽을 드롭하고 keep 토픽의 라벨을 교체한다.
 
 safe-degrade(AD-5): 토글 off / llm 부재 / 호출·파싱·개수불일치 → 입력 전량 통과.
+
+normalize와의 상호작용(의도된 계약): normalize는 technology_name 기준으로 재그룹핑한다.
+따라서 서로 다른 cluster_key를 가진 두 토픽이 LLM으로부터 **같은 name**을 받으면
+normalize 단계에서 하나의 signal로 병합된다. 이는 동일 기술의 의도적 중복제거로 수용한다
+(clustering의 _unique_label가 보장하던 클러스터별 distinct 라벨은 curator 이후 더 이상
+불변이 아님). 다른 기술에 같은 이름이 붙는 오분류는 프롬프트 품질로 완화한다.
 """
 from __future__ import annotations
 
