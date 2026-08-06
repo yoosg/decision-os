@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # Story 6.2: 의미 클러스터링 & 관련성/세이프티 필터
     # clustering_enabled: 안전 롤아웃/긴급 차단 토글(끄면 6.1 그대로 pass-through)
     clustering_enabled: bool = True
+    # learnability_filter_enabled: 학습가치 필터 on/off (긴급 차단 토글). 끄면 전량 통과.
+    learnability_filter_enabled: bool = True
     # cluster_similarity_threshold: 코사인 유사도 클러스터 병합 임계치(초기값, 튜닝 대상)
     cluster_similarity_threshold: float = 0.82
     # relevance_min_similarity: 도메인 앵커 유사도 하한(미만이면 off_domain으로 제외)
