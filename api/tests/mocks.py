@@ -72,6 +72,16 @@ class MockLLMProvider(LLMProvider):
             raise LLMProviderError("mock LLM error")
         return LLMResponse(content=VALID_MEMORY_RESPONSE, model="mock")
 
+    def classify_learnability(self, topics: list[dict]) -> LLMResponse:
+        if self._raise_error:
+            raise LLMProviderError("mock LLM error")
+        results = [
+            {"id": t.get("id"), "keep": True, "category": "new_tool",
+             "name": t.get("label") or t.get("title") or "topic"}
+            for t in topics
+        ]
+        return LLMResponse(content=json.dumps({"results": results}), model="mock")
+
     def embed_text(self, text):
         if self._raise_error:
             raise LLMProviderError("mock LLM error")
