@@ -39,10 +39,24 @@ def test_tags_included_in_params():
     assert "show_hn" in params["tags"]
 
 
+def test_no_numeric_filter_when_min_points_zero():
+    # 기본값(min_points=0)에서는 numericFilters를 보내지 않는다(전 기존 소스 호환).
+    client = MagicMock()
+    client.get.return_value = _resp([])
+    HackerNewsCollector(["LLM"], client).collect()
+    params = client.get.call_args.kwargs["params"]
+    assert "numericFilters" not in params
+
+
 def test_registry_has_no_verge_and_has_github_releases():
     names = [s.name for s in registry.SOURCES]
     assert "The Verge AI" not in names
-    kinds_urls = [(s.kind, s.url) for s in registry.SOURCES]
-    assert ("github", "vllm-project/vllm") in kinds_urls
+    kinds_urls = {(s.kind, s.url) for s in registry.SOURCES}
+    # 큐레이션된 GitHub 릴리스 6종 전수 검증(하나라도 빠지면 회귀).
+    for slug in (
+        "langchain-ai/langgraph", "langchain-ai/langchain", "run-llama/llama_index",
+        "vllm-project/vllm", "ollama/ollama", "ggml-org/llama.cpp",
+    ):
+        assert ("github", slug) in kinds_urls
     hn = [s for s in registry.SOURCES if s.kind == "hn"]
     assert any(s.min_points >= 50 for s in hn)
