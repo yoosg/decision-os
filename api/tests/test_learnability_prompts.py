@@ -43,6 +43,11 @@ def test_empty_name_raises():
         prompts.parse_and_validate_learnability(raw, expected_count=1)
 
 
+def test_invalid_json_raises_llm_provider_error():
+    with pytest.raises(LLMProviderError):
+        prompts.parse_and_validate_learnability("not json", expected_count=1)
+
+
 def test_user_input_includes_titles_and_ids():
     s = prompts.build_learnability_user_input([
         {"id": 0, "label": "General AI", "title": "OpenAI 협력 과정"},

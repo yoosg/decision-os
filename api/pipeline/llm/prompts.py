@@ -206,7 +206,10 @@ def build_learnability_user_input(topics: list[dict]) -> str:
 
 
 def parse_and_validate_learnability(raw: str, expected_count: int) -> list[dict]:
-    parsed = json.loads(raw)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise LLMProviderError(f"LLM 응답이 유효한 JSON이 아님: {e}") from e
     if not isinstance(parsed, dict):
         raise LLMProviderError(f"LLM 응답이 JSON 객체가 아님: {type(parsed).__name__}")
     results = parsed.get("results")
