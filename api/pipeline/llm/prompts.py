@@ -174,3 +174,51 @@ def parse_and_validate_memory(raw: str) -> None:
         raise LLMProviderError(f"memory_type이 허용 목록 밖: {memory_type}")
     if not isinstance(summary, str) or not summary.strip():
         raise LLMProviderError(f"summary가 비어있음: {summary!r}")
+
+
+LEARNABILITY_KEEP_CATEGORIES = ["new_tool", "tool_update", "technique_research", "framework_library"]
+LEARNABILITY_DROP_CATEGORIES = ["business_news", "opinion", "social_ethics", "general_news"]
+LEARNABILITY_CATEGORIES = LEARNABILITY_KEEP_CATEGORIES + LEARNABILITY_DROP_CATEGORIES
+
+LEARNABILITY_CLASSIFY_PROMPT = """당신은 AI 기술 큐레이터입니다. 주어진 토픽들이 '학습가치'가 있는지 분류하세요.
+판정 기준: "프론트엔드 개발자가 이번 주에 바로 배우거나 코드에 적용할 수 있는가?"
+
+keep=true 카테고리: new_tool(신규 도구/서비스), tool_update(도구 업데이트/릴리스),
+technique_research(바로 적용 가능한 기법/연구), framework_library(프레임워크/라이브러리).
+keep=false 카테고리: business_news(비즈니스/제휴/투자), opinion(오피니언/인터뷰),
+social_ethics(사회·윤리·규제 논쟁), general_news(그 외 잡뉴스).
+
+애매하면 보수적으로 keep=true 로 둡니다(과도한 삭제 금지).
+각 토픽에 대해 keep에 맞는 category를 고르고, 사람이 읽기 좋은 짧은 기술명 name(한국어, 40자 이내)을 생성하세요.
+
+반드시 아래 JSON 객체만 반환하세요(마크다운 없이). results 배열은 입력 토픽과 같은 개수·같은 id를 가져야 합니다:
+{"results": [{"id": 0, "keep": true, "category": "tool_update", "name": "..."}]}"""
+
+_LEARNABILITY_KEYS = {"id", "keep", "category", "name"}
+
+
+def build_learnability_user_input(topics: list[dict]) -> str:
+    lines = [
+        f'- id={t.get("id")} | label={t.get("label", "")} | title={t.get("title", "")}'
+        for t in topics
+    ]
+    return "다음 토픽들을 분류하세요:\n" + "\n".join(lines) + "\n\nJSON 객체로 반환하세요."
+
+
+def parse_and_validate_learnability(raw: str, expected_count: int) -> list[dict]:
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise LLMProviderError(f"LLM 응답이 JSON 객체가 아님: {type(parsed).__name__}")
+    results = parsed.get("results")
+    if not isinstance(results, list) or len(results) != expected_count:
+        raise LLMProviderError(f"results 개수 불일치: 기대 {expected_count}, 실제 {results!r}")
+    for r in results:
+        if not isinstance(r, dict) or not _LEARNABILITY_KEYS.issubset(r.keys()):
+            raise LLMProviderError(f"result 항목 키 누락: {r}")
+        if r["category"] not in LEARNABILITY_CATEGORIES:
+            raise LLMProviderError(f"category 허용 목록 밖: {r['category']}")
+        if not isinstance(r["name"], str) or not r["name"].strip():
+            raise LLMProviderError(f"name 비어있음: {r!r}")
+        if not isinstance(r["keep"], bool):
+            raise LLMProviderError(f"keep 이 bool 아님: {r!r}")
+    return results

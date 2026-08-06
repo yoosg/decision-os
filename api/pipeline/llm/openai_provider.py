@@ -111,6 +111,24 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             raise LLMProviderError(str(e)) from e
 
+    def classify_learnability(self, topics: list[dict]) -> LLMResponse:
+        try:
+            response = self._client.responses.create(
+                model=self._model,
+                instructions=prompts.LEARNABILITY_CLASSIFY_PROMPT,
+                input=prompts.build_learnability_user_input(topics),
+                text={"format": {"type": "json_object"}},
+            )
+            raw = response.output_text
+            prompts.parse_and_validate_learnability(raw, expected_count=len(topics))
+            return LLMResponse(content=raw, model=self._model)
+        except LLMProviderError:
+            raise
+        except OpenAIError as e:
+            raise LLMProviderError(str(e)) from e
+        except Exception as e:
+            raise LLMProviderError(str(e)) from e
+
     def embed_text(self, text: str) -> list[float]:
         try:
             response = self._client.embeddings.create(model=self._embedding_model, input=text)
