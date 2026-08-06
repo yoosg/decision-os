@@ -83,3 +83,8 @@ def test_dropped_topic_is_logged():
         curate_learnability(articles, llm, brief_date="d")
     events = [c.kwargs.get("event") for c in log.call_args_list]
     assert "topic_dropped" in events
+
+
+def test_safe_degrade_on_empty_input():
+    # 빈 입력은 토글/llm 상태와 무관하게 전량(=빈) 통과, 예외 없음.
+    assert curate_learnability([], MagicMock(), brief_date="d") == []
