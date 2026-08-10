@@ -3,6 +3,7 @@ export interface LearningPathResource {
   title: string;
   url: string;
   descriptor: string;
+  objective?: string;
   is_search_fallback?: boolean;
 }
 
@@ -71,6 +72,11 @@ export function LearningPathCard({ resource, onVisit }: LearningPathCardProps) {
           {resource.descriptor && (
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
               {resource.descriptor}
+            </p>
+          )}
+          {resource.objective && (
+            <p style={{ fontSize: "13px", color: "var(--text-tertiary)", margin: "6px 0 0" }}>
+              이 단계에서: {resource.objective}
             </p>
           )}
         </div>
