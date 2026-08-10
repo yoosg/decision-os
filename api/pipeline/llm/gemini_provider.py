@@ -105,5 +105,13 @@ class GeminiProvider(LLMProvider):
         prompts.parse_and_validate_memory(raw)
         return LLMResponse(content=raw, model=self._model)
 
+    def classify_learnability(self, topics: list[dict]) -> LLMResponse:
+        raw = self._generate(
+            prompts.LEARNABILITY_CLASSIFY_PROMPT,
+            prompts.build_learnability_user_input(topics), as_json=True,
+        )
+        prompts.parse_and_validate_learnability(raw, expected_count=len(topics))
+        return LLMResponse(content=raw, model=self._model)
+
     def embed_text(self, text: str) -> list[float]:
         return self._embedder.embed_text(text)

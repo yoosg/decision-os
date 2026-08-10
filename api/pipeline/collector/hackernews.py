@@ -64,12 +64,16 @@ class HackerNewsCollector(BaseCollector):
         name: str = "HackerNews",
         max_total: int = _MAX_HN,
         per_query: int = _PER_QUERY,
+        min_points: int = 0,
+        tags: tuple[str, ...] = (),
     ) -> None:
         self.name = name
         self._queries = list(queries)
         self._client = client
         self._max_total = max_total
         self._per_query = per_query
+        self._min_points = min_points
+        self._tags = tags
 
     def collect(self) -> list[RawArticle]:
         out: list[RawArticle] = []
@@ -78,10 +82,11 @@ class HackerNewsCollector(BaseCollector):
             if len(out) >= self._max_total:
                 break
             try:
-                r = self._client.get(
-                    _HN_API,
-                    params={"query": query, "tags": "story", "hitsPerPage": self._per_query},
-                )
+                tag_expr = ",".join(("story", *self._tags))
+                params = {"query": query, "tags": tag_expr, "hitsPerPage": self._per_query}
+                if self._min_points > 0:
+                    params["numericFilters"] = f"points>={self._min_points}"
+                r = self._client.get(_HN_API, params=params)
                 r.raise_for_status()
                 hits = r.json().get("hits", [])
             except Exception:
@@ -94,6 +99,8 @@ class HackerNewsCollector(BaseCollector):
                     break
                 title = (hit.get("title") or "").strip()
                 if not title:
+                    continue
+                if self._min_points > 0 and _hit_popularity(hit) < self._min_points:
                     continue
                 url = hit.get("url")
                 object_id = hit.get("objectID")

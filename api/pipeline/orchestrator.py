@@ -8,6 +8,7 @@ from core.timeutil import today_kst
 from pipeline.clustering import cluster_and_filter
 from pipeline.collector.aggregator import run_collectors
 from pipeline.collector.stub import StubCollector
+from pipeline.curator import curate_learnability
 from pipeline.fcm import (
     init_firebase,
     run_daily_brief_push_job,
@@ -58,6 +59,11 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
         articles = cluster_and_filter(articles, llm, brief_date=brief_date)
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="cluster_done", article_count=len(articles))
+
+        # 2.5 Curate — 학습가치 분류: 뉴스/오피니언 드롭 + 깨끗한 이름. safe-degrade(AD-5).
+        articles = curate_learnability(articles, llm, brief_date=brief_date)
+        pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
+                     event="curate_done", article_count=len(articles))
 
         # 3. Normalize
         signal_ids = normalize(articles, today, client, brief_date=brief_date)

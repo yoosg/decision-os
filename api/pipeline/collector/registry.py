@@ -35,19 +35,24 @@ class Source:
     source_type: SourceType
     url: str = ""
     queries: tuple[str, ...] = field(default_factory=tuple)
+    min_points: int = 0
+    tags: tuple[str, ...] = field(default_factory=tuple)
     enabled: bool = True
 
 
-# 스파이크 검증 시드: RSS 5개 + HN 키워드 + GitHub Releases 1개.
-# enabled=False로 개별 토글 가능(피드 헬스에 따라 끄기).
 SOURCES: list[Source] = [
     Source("Hugging Face", "rss", "official_blog", url="https://huggingface.co/blog/feed.xml"),
     Source("Simon Willison", "rss", "official_blog", url="https://simonwillison.net/atom/everything/"),
     Source("Google AI", "rss", "official_blog", url="https://blog.google/technology/ai/rss/"),
-    Source("The Verge AI", "rss", "other", url="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
-    Source("LangChain", "rss", "official_blog", url="https://blog.langchain.dev/rss/"),
-    Source("HackerNews", "hn", "hn", queries=("LLM", "OpenAI", "Anthropic Claude", "RAG")),
+    Source("OpenAI Blog", "rss", "official_blog", url="https://openai.com/blog/rss.xml"),
     Source("langgraph releases", "github", "github", url="langchain-ai/langgraph"),
+    Source("langchain releases", "github", "github", url="langchain-ai/langchain"),
+    Source("llama_index releases", "github", "github", url="run-llama/llama_index"),
+    Source("vllm releases", "github", "github", url="vllm-project/vllm"),
+    Source("ollama releases", "github", "github", url="ollama/ollama"),
+    Source("llama.cpp releases", "github", "github", url="ggml-org/llama.cpp"),
+    Source("HackerNews", "hn", "hn", queries=("LLM", "OpenAI", "Anthropic Claude", "RAG"), min_points=50),
+    Source("Show HN AI", "hn", "hn", queries=("AI", "LLM"), tags=("show_hn",), min_points=10),
 ]
 
 
@@ -57,7 +62,10 @@ def _build_one(source: Source, client: httpx.Client) -> BaseCollector:
     if source.kind == "github":
         return GitHubReleasesCollector(source.url, client, name=source.name)
     if source.kind == "hn":
-        return HackerNewsCollector(source.queries, client, name=source.name)
+        return HackerNewsCollector(
+            source.queries, client, name=source.name,
+            min_points=source.min_points, tags=source.tags,
+        )
     raise ValueError(f"Unknown source kind: {source.kind!r} ({source.name})")
 
 

@@ -97,6 +97,11 @@ class LLMProvider(ABC):
         ...
 
     @abstractmethod
+    def classify_learnability(self, topics: list[dict]) -> LLMResponse:
+        """토픽 배치를 학습가치로 분류. content = JSON {"results":[{"id","keep","category","name"}]}."""
+        ...
+
+    @abstractmethod
     def embed_text(self, text: str) -> list[float]:
         """텍스트를 임베딩 벡터(1536차원)로 변환 (AD-7)"""
         ...
