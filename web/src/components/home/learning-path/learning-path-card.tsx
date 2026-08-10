@@ -3,6 +3,7 @@ export interface LearningPathResource {
   title: string;
   url: string;
   descriptor: string;
+  is_search_fallback?: boolean;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -31,6 +32,7 @@ export function LearningPathCard({ resource, onVisit }: LearningPathCardProps) {
   const label = TYPE_LABELS[resource.type] ?? resource.type;
   const hasUrl = Boolean(resource.url) && isSafeExternalUrl(resource.url);
   const isEnglishLabel = resource.type === "github";
+  const isSearchFallback = Boolean(resource.is_search_fallback);
 
   const handleClick = () => {
     if (!hasUrl) return;
@@ -72,26 +74,34 @@ export function LearningPathCard({ resource, onVisit }: LearningPathCardProps) {
             </p>
           )}
         </div>
-        {hasUrl && (
-          <svg
-            aria-hidden="true"
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            style={{ flexShrink: 0, color: "var(--text-tertiary)" }}
-          >
-            <path
-              d="M5.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H10.5C11.0523 12.5 11.5 12.0523 11.5 11.5V8.5"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M8 1.5H12.5V6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M12.5 1.5L6.5 7.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
+        {hasUrl &&
+          (isSearchFallback ? (
+            <span
+              className="text-badge"
+              style={{ flexShrink: 0, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}
+            >
+              🔍 검색으로 찾기
+            </span>
+          ) : (
+            <svg
+              aria-hidden="true"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              style={{ flexShrink: 0, color: "var(--text-tertiary)" }}
+            >
+              <path
+                d="M5.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H10.5C11.0523 12.5 11.5 12.0523 11.5 11.5V8.5"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M8 1.5H12.5V6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M12.5 1.5L6.5 7.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ))}
       </div>
     </button>
   );
