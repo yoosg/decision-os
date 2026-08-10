@@ -100,3 +100,16 @@ def test_search_url_includes_tech_and_label_encoded():
     # 공백은 quote_plus로 '+' 인코딩
     assert "Llama+Index" in url
     assert "%EA%B3%B5%EC%8B%9D" in url  # '공식'의 URL 인코딩 일부
+
+
+def test_extra_keys_like_objective_are_preserved_on_replace():
+    """죽은 링크 교체 시에도 objective 등 추가 키가 보존된다(작업 B 2단계 상호작용)."""
+    resources = [dict(r, objective=f"obj{i}") for i, r in enumerate(_resources())]
+    urls = {r["url"]: 200 for r in resources if r["url"]}
+    urls["https://a.dev/docs"] = 404  # 첫 리소스를 죽은 링크로
+    out = verify_and_fix_links(resources, "LangGraph", _client(urls), 5.0)
+    # 교체된 리소스도 objective 유지
+    assert out[0]["is_search_fallback"] is True
+    assert out[0]["objective"] == "obj0"
+    # 나머지도 objective 유지
+    assert [r["objective"] for r in out] == [f"obj{i}" for i in range(5)]
