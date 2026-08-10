@@ -368,6 +368,8 @@ def test_execute_learning_path_pipeline_completes(monkeypatch):
     assert "completed" in learning_paths_update_statuses
     completed_update = next(d for d in learning_paths_update_data if d.get("status") == "completed")
     assert len(completed_update["resources"]) == 5
+    # goal 컬럼에 LLM payload의 goal이 기록된다 (작업 B 2단계)
+    assert completed_update.get("goal") == "LangGraph로 상태 기반 에이전트 워크플로를 직접 구성해본다"
 
 
 def test_execute_learning_path_pipeline_sets_failed_on_error():
@@ -511,3 +513,47 @@ def test_pipeline_falls_back_to_original_when_verify_raises(monkeypatch):
     assert "completed" in statuses
     completed = next(d for d in datas if d.get("status") == "completed")
     assert len(completed["resources"]) == 5
+
+
+def test_execute_learning_path_pipeline_omits_empty_goal(monkeypatch):
+    """LLM payload의 goal이 빈 문자열이면 goal 컬럼을 기록하지 않는다."""
+    import json
+    from tests.mocks import MockLLMProvider, VALID_LEARNING_PATH_RESPONSE
+    from pipeline import coach as coach_mod
+    monkeypatch.setattr(coach_mod, "verify_and_fix_links", lambda resources, *a, **k: resources)
+
+    payload = json.loads(VALID_LEARNING_PATH_RESPONSE)
+    payload["goal"] = ""
+    empty_goal_response = json.dumps(payload)
+
+    mock_client = MagicMock()
+    update_data: list[dict] = []
+
+    def table_side_effect(table_name):
+        c = _chain()
+        if table_name == "signals":
+            c.execute.return_value.data = [{"id": TEST_SIGNAL_ID, "technology_name": "LangGraph", "summary": "요약"}]
+        elif table_name == "signal_sources":
+            c.execute.return_value.data = []
+        elif table_name == "decisions":
+            c.execute.return_value.data = [{"review_id": TEST_REVIEW_ID}]
+        elif table_name == "reviews":
+            c.execute.return_value.data = [{"project_id": TEST_PROJECT_ID}]
+        elif table_name == "projects":
+            c.execute.return_value.data = [{"user_id": TEST_USER_ID}]
+        elif table_name == "user_profiles":
+            c.execute.return_value.data = [{"role": "backend", "tech_stack": ["Python"], "project_goal": "x", "experience_level": "intermediate"}]
+        elif table_name == "learning_paths":
+            c.update.side_effect = lambda data: update_data.append(data) or c
+        return c
+
+    mock_client.table.side_effect = table_side_effect
+
+    from pipeline.coach import _execute_learning_path_pipeline
+    _execute_learning_path_pipeline(
+        TEST_LEARNING_PATH_ID, TEST_DECISION_ID, TEST_SIGNAL_ID, mock_client,
+        MockLLMProvider(learning_path_content=empty_goal_response),
+    )
+
+    completed = next(d for d in update_data if d.get("status") == "completed")
+    assert "goal" not in completed

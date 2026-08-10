@@ -85,6 +85,7 @@ def _execute_learning_path_pipeline(
 
         # resources JSONB 검증 (5개 항목, type 값 검증)
         payload = json.loads(llm_response.content)
+        goal = payload.get("goal")
         resources = payload.get("resources")
         if not isinstance(resources, list) or len(resources) != 5:
             raise ValueError(f"resources 배열이 5개가 아님: {resources}")
@@ -110,10 +111,13 @@ def _execute_learning_path_pipeline(
                 )
 
         # completed 상태 전이 (불변)
-        client.table("learning_paths").update({
+        completed_update = {
             "status": "completed",
             "resources": resources,
-        }).eq("id", learning_path_id).execute()
+        }
+        if isinstance(goal, str) and goal.strip():
+            completed_update["goal"] = goal
+        client.table("learning_paths").update(completed_update).eq("id", learning_path_id).execute()
 
         pipeline_log(stage="coach", brief_date="", user_count=0,
                      event="learning_path_completed", learning_path_id=learning_path_id,
