@@ -9,6 +9,8 @@ from pipeline.llm.factory import get_llm_provider
 from pipeline.llm.openai_provider import LEARNING_PATH_RESOURCE_TYPES
 from pipeline.logger import pipeline_log
 from core.supabase import get_supabase
+from core.config import settings
+from pipeline.link_verifier import build_http_client, verify_and_fix_links
 
 _log = logging.getLogger(__name__)
 
@@ -89,6 +91,23 @@ def _execute_learning_path_pipeline(
         resource_types = [r.get("type") for r in resources]
         if resource_types != LEARNING_PATH_RESOURCE_TYPES:
             raise ValueError(f"resources type 순서/값 불일치: {resource_types}")
+
+        # 링크 검증: 죽은 링크(404/410/네트워크 실패)를 검색 링크로 교체.
+        # 검증 자체가 실패해도 원본 resources로 진행한다(링크 확인 실패가 학습 경로 생성을 막지 않도록).
+        if settings.link_verification_enabled:
+            try:
+                with build_http_client() as http_client:
+                    resources = verify_and_fix_links(
+                        resources,
+                        signal_data["technology_name"],
+                        http_client,
+                        settings.link_verification_timeout_seconds,
+                    )
+            except Exception:
+                _log.exception(
+                    "link verification failed; proceeding with original resources learning_path_id=%s",
+                    learning_path_id,
+                )
 
         # completed 상태 전이 (불변)
         client.table("learning_paths").update({

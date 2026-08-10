@@ -314,9 +314,12 @@ def test_run_learning_path_from_pending_delegates_to_pipeline(monkeypatch):
     assert llm == "the-llm"
 
 
-def test_execute_learning_path_pipeline_completes():
+def test_execute_learning_path_pipeline_completes(monkeypatch):
     """정상 실행 시 learning_paths 테이블에 completed 상태 + resources 업데이트."""
     from tests.mocks import MockLLMProvider
+    from pipeline import coach as coach_mod
+    # 링크 검증이 실제 네트워크를 타지 않도록 항등함수로 대체(검증 로직은 test_link_verifier에서 검증).
+    monkeypatch.setattr(coach_mod, "verify_and_fix_links", lambda resources, *a, **k: resources)
 
     mock_client = MagicMock()
     learning_paths_update_statuses: list[str] = []
@@ -409,3 +412,102 @@ def test_execute_learning_path_pipeline_sets_failed_on_error():
     )
 
     assert "failed" in learning_paths_update_statuses
+
+
+def _completes_client():
+    """completes/failed 테스트와 동일한 성공 경로 mock client + 상태 기록 리스트를 돌려준다."""
+    mock_client = MagicMock()
+    statuses: list[str] = []
+    datas: list[dict] = []
+
+    def table_side_effect(table_name):
+        c = _chain()
+        if table_name == "signals":
+            c.execute.return_value.data = [{
+                "id": TEST_SIGNAL_ID, "technology_name": "LangGraph", "summary": "요약",
+            }]
+        elif table_name == "signal_sources":
+            c.execute.return_value.data = []
+        elif table_name == "decisions":
+            c.execute.return_value.data = [{"review_id": TEST_REVIEW_ID}]
+        elif table_name == "reviews":
+            c.execute.return_value.data = [{"project_id": TEST_PROJECT_ID}]
+        elif table_name == "projects":
+            c.execute.return_value.data = [{"user_id": TEST_USER_ID}]
+        elif table_name == "user_profiles":
+            c.execute.return_value.data = [{
+                "role": "backend", "tech_stack": ["Python"],
+                "project_goal": "ai_side_project", "experience_level": "intermediate",
+            }]
+        elif table_name == "learning_paths":
+            def update_side_effect(data):
+                datas.append(data)
+                if "status" in data:
+                    statuses.append(data["status"])
+                return c
+            c.update.side_effect = update_side_effect
+        return c
+
+    mock_client.table.side_effect = table_side_effect
+    return mock_client, statuses, datas
+
+
+def test_pipeline_calls_verify_when_enabled(monkeypatch):
+    """토글 on이면 verify 결과가 completed의 resources로 저장된다."""
+    from tests.mocks import MockLLMProvider
+    from pipeline import coach as coach_mod
+
+    marker = [{"type": "official_docs", "title": "X", "url": "https://s", "descriptor": "d",
+               "is_search_fallback": True}]
+    called = {}
+    def fake_verify(resources, tech, client, timeout):
+        called["tech"] = tech
+        return marker
+    monkeypatch.setattr(coach_mod.settings, "link_verification_enabled", True)
+    monkeypatch.setattr(coach_mod, "verify_and_fix_links", fake_verify)
+
+    mock_client, statuses, datas = _completes_client()
+    coach_mod._execute_learning_path_pipeline(
+        TEST_LEARNING_PATH_ID, TEST_DECISION_ID, TEST_SIGNAL_ID, mock_client, MockLLMProvider()
+    )
+    assert "completed" in statuses
+    completed = next(d for d in datas if d.get("status") == "completed")
+    assert completed["resources"] == marker
+    assert called["tech"] == "LangGraph"
+
+
+def test_pipeline_skips_verify_when_disabled(monkeypatch):
+    """토글 off면 verify를 호출하지 않고 원본 resources로 저장한다."""
+    from tests.mocks import MockLLMProvider
+    from pipeline import coach as coach_mod
+
+    def boom(*a, **k):
+        raise AssertionError("verify는 호출되면 안 됨")
+    monkeypatch.setattr(coach_mod.settings, "link_verification_enabled", False)
+    monkeypatch.setattr(coach_mod, "verify_and_fix_links", boom)
+
+    mock_client, statuses, datas = _completes_client()
+    coach_mod._execute_learning_path_pipeline(
+        TEST_LEARNING_PATH_ID, TEST_DECISION_ID, TEST_SIGNAL_ID, mock_client, MockLLMProvider()
+    )
+    completed = next(d for d in datas if d.get("status") == "completed")
+    assert len(completed["resources"]) == 5
+
+
+def test_pipeline_falls_back_to_original_when_verify_raises(monkeypatch):
+    """verify가 예외를 던져도 원본 resources로 completed 저장(안전 폴백)."""
+    from tests.mocks import MockLLMProvider
+    from pipeline import coach as coach_mod
+
+    def boom(*a, **k):
+        raise RuntimeError("verify 폭발")
+    monkeypatch.setattr(coach_mod.settings, "link_verification_enabled", True)
+    monkeypatch.setattr(coach_mod, "verify_and_fix_links", boom)
+
+    mock_client, statuses, datas = _completes_client()
+    coach_mod._execute_learning_path_pipeline(
+        TEST_LEARNING_PATH_ID, TEST_DECISION_ID, TEST_SIGNAL_ID, mock_client, MockLLMProvider()
+    )
+    assert "completed" in statuses
+    completed = next(d for d in datas if d.get("status") == "completed")
+    assert len(completed["resources"]) == 5
