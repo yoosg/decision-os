@@ -77,8 +77,13 @@ export function LearningPathCard({ resource, onVisit }: LearningPathCardProps) {
         {hasUrl &&
           (isSearchFallback ? (
             <span
-              className="text-badge"
-              style={{ flexShrink: 0, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}
+              style={{
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--text-tertiary)",
+              }}
             >
               🔍 검색으로 찾기
             </span>

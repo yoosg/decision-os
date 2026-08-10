@@ -30,8 +30,8 @@ _DEAD_STATUS = {404, 410}
 
 
 def build_http_client() -> httpx.Client:
-    """링크 검증용 httpx.Client. 리다이렉트를 따라가고 브라우저 UA를 사용한다."""
-    return httpx.Client(follow_redirects=True, headers={"User-Agent": BROWSER_UA})
+    """링크 검증용 httpx.Client. 리다이렉트를 따라가되(상한 5) 브라우저 UA를 사용한다."""
+    return httpx.Client(follow_redirects=True, max_redirects=5, headers={"User-Agent": BROWSER_UA})
 
 
 def _search_url(technology_name: str, resource_type: str) -> str:
@@ -43,7 +43,7 @@ def _search_url(technology_name: str, resource_type: str) -> str:
 def _is_alive(client: httpx.Client, url: str, timeout: float) -> bool:
     """살아있으면 True. 404/410/네트워크 실패면 False. 그 외(403 등)는 True(보수적)."""
     try:
-        resp = client.get(url, timeout=timeout)
+        resp = client.get(url, timeout=httpx.Timeout(timeout))
     except httpx.HTTPError:
         return False
     return resp.status_code not in _DEAD_STATUS
