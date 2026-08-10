@@ -36,15 +36,16 @@ Review의 내용을 기반으로 명확하고 유용한 답변을 제공하세�
 LEARNING_PATH_SYSTEM_PROMPT = """당신은 AI 기술 학습 전문가입니다. 주어진 기술 Signal에 대한 Learning Path를 JSON 형식으로 작성하세요.
 반드시 다음 형식을 따르는 JSON 객체만 반환하세요:
 {
+  "goal": "이 학습 경로로 사용자가 무엇을 달성하는지 1~2문장. 사용자 역할/기술스택/프로젝트 목표를 반영해 구체적으로.",
   "resources": [
-    {"type": "official_docs",    "title": "공식 문서 제목", "url": "https://...", "descriptor": "간단한 설명"},
-    {"type": "core_material",    "title": "핵심 자료 제목", "url": "https://...", "descriptor": "간단한 설명"},
-    {"type": "github",           "title": "GitHub 레포/예제 제목", "url": "https://github.com/...", "descriptor": "간단한 설명"},
-    {"type": "practice_example", "title": "실습 예제 제목", "url": "https://...", "descriptor": "간단한 설명"},
-    {"type": "applied_idea",     "title": "적용 아이디어 제목", "url": "", "descriptor": "사용자 프로젝트 목표 기반 구체적 적용 아이디어"}
+    {"type": "official_docs",    "title": "공식 문서 제목", "url": "https://...", "descriptor": "간단한 설명", "objective": "이 단계에서 무엇을 배우는지 한 줄(한국어)"},
+    {"type": "core_material",    "title": "핵심 자료 제목", "url": "https://...", "descriptor": "간단한 설명", "objective": "이 단계에서 무엇을 배우는지 한 줄"},
+    {"type": "github",           "title": "GitHub 레포/예제 제목", "url": "https://github.com/...", "descriptor": "간단한 설명", "objective": "이 단계에서 무엇을 배우는지 한 줄"},
+    {"type": "practice_example", "title": "실습 예제 제목", "url": "https://...", "descriptor": "간단한 설명", "objective": "이 단계에서 무엇을 배우는지 한 줄"},
+    {"type": "applied_idea",     "title": "적용 아이디어 제목", "url": "", "descriptor": "사용자 프로젝트 목표 기반 구체적 적용 아이디어", "objective": "이 단계에서 무엇을 배우는지 한 줄"}
   ]
 }
-순서를 변경하지 마세요. 마크다운 없이 JSON만 반환하세요."""
+순서를 변경하지 마세요. goal과 각 objective는 반드시 채우세요. 마크다운 없이 JSON만 반환하세요."""
 
 LEARNING_PATH_RESOURCE_TYPES = [
     "official_docs", "core_material", "github", "practice_example", "applied_idea",
