@@ -266,7 +266,7 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
       style={{
         minHeight: "100dvh",
         background: "var(--surface-base)",
-        paddingBottom: showOutcomePrompt && uiState.type === "ready" ? "96px" : "24px",
+        paddingBottom: showOutcomePrompt && uiState.type === "ready" ? "150px" : "24px",
       }}
     >
       {/* Header */}
@@ -411,12 +411,16 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
         <div
           style={{
             position: "fixed",
-            bottom: 0,
+            // 하단 nav(고정, ~64px) 위에 얹는다. bottom:0이면 nav와 겹침.
+            bottom: 64,
             left: 0,
             right: 0,
             padding: "12px 20px 20px",
             background: "var(--surface-base)",
             borderTop: "1px solid var(--border-subtle)",
+            zIndex: 40,
+            // iOS Safari 관성 스크롤 중 고정요소 리페인트 지연 방지 — 자체 컴포지팅 레이어로 승격
+            transform: "translateZ(0)",
           }}
         >
           <p className="text-label" style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>

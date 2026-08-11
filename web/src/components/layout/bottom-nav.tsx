@@ -73,6 +73,9 @@ export function BottomNav() {
         borderTop: "1px solid var(--border-subtle)",
         zIndex: 50,
         paddingBottom: "env(safe-area-inset-bottom)",
+        // iOS Safari 관성 스크롤 중 fixed 요소가 스크롤 레이어에 얹혀 mid-screen으로
+        // 밀리는 리페인트 지연을 막기 위해 자체 컴포지팅 레이어로 승격한다.
+        transform: "translateZ(0)",
       }}
     >
       <div className="screen-container">
