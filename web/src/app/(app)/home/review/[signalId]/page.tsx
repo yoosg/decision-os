@@ -21,16 +21,22 @@ export default async function ReviewPage({
   const { signalId } = await params;
 
   const supabase = await createServerSupabaseClient();
-  const { data: reviewRow, error } = await supabase
+  // 한 signal에 리뷰 행이 여러 개일 수 있다(재시도 등). "최신 1개"만 집으면 최신 행이
+  // failed일 때 멀쩡한 completed를 무시하고 실패로 표시 → 불필요한 재트리거·중복 생성까지
+  // 유발한다. 그래서 completed가 있으면 그걸 우선하고, 없을 때만 최신 행을 쓴다.
+  // (RLS로 현재 사용자 소유 리뷰만 조회됨)
+  const { data: reviewRows, error } = await supabase
     .from("reviews")
     .select("id, status, result, bar_gate_override, signals(title)")
     .eq("signal_id", signalId)
     .eq("playbook_type", "ai_research")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
 
   if (error) console.error("[ReviewPage] Supabase error:", error);
+
+  const reviewRow =
+    reviewRows?.find((r) => r.status === "completed") ?? reviewRows?.[0] ?? null;
 
   const signalsRaw = (reviewRow?.signals as unknown) as Record<string, unknown> | null;
   const signalTitle = typeof signalsRaw?.title === "string" ? signalsRaw.title : "";
