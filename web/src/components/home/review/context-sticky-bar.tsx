@@ -238,7 +238,7 @@ export function ContextStickyBar({
           aria-live="assertive"
           style={{
             position: "fixed",
-            bottom: "148px",
+            bottom: "calc(148px + env(safe-area-inset-bottom))",
             left: 0,
             right: 0,
             display: "flex",
@@ -360,7 +360,9 @@ export function ContextStickyBar({
         className="ctx-bar-root"
         style={{
           position: "fixed",
-          bottom: "64px",
+          // nav(고정, 64px + 홈 인디케이터 safe-area) 위에 얹는다.
+          // safe-area를 더하지 않으면 실기기에서 하단 버튼이 nav에 가려짐.
+          bottom: "calc(64px + env(safe-area-inset-bottom))",
           left: 0,
           right: 0,
           padding: "8px 20px 12px",

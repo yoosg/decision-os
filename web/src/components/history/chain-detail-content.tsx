@@ -142,6 +142,25 @@ export function ChainDetailContent({ data }: Props) {
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
             {formatCardDate(decision.createdAt)}
           </p>
+          {isLearnNow && (
+            <Link
+              href={`/home/review/${signal.id}/learning-path`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                marginTop: "10px",
+                padding: "8px 14px",
+                borderRadius: "9999px",
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              학습 경로 보기
+            </Link>
+          )}
         </ChainNode>
       )}
 
