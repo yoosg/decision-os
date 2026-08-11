@@ -289,6 +289,8 @@ export function ContextStickyBar({
               borderRadius: "24px 24px 0 0",
               padding: "12px 20px 40px",
               zIndex: 51,
+              // iOS Safari 관성 스크롤 중 fixed 리페인트 지연 방지(자체 컴포지팅 레이어)
+              transform: "translateZ(0)",
             }}
           >
             {/* drag handle */}
@@ -364,6 +366,9 @@ export function ContextStickyBar({
           padding: "8px 20px 12px",
           background: "var(--surface-base, #FFFFFF)",
           borderTop: "1px solid var(--border-subtle, #E5E5E5)",
+          zIndex: 40,
+          // iOS Safari 관성 스크롤 중 fixed 리페인트 지연 방지(자체 컴포지팅 레이어)
+          transform: "translateZ(0)",
         }}
       >
         {/* aria-live 영역 */}
