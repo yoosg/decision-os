@@ -266,7 +266,10 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
       style={{
         minHeight: "100dvh",
         background: "var(--surface-base)",
-        paddingBottom: showOutcomePrompt && uiState.type === "ready" ? "150px" : "24px",
+        paddingBottom:
+          showOutcomePrompt && uiState.type === "ready"
+            ? "calc(150px + env(safe-area-inset-bottom))"
+            : "24px",
       }}
     >
       {/* Header */}
@@ -411,8 +414,8 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
         <div
           style={{
             position: "fixed",
-            // 하단 nav(고정, ~64px) 위에 얹는다. bottom:0이면 nav와 겹침.
-            bottom: 64,
+            // 하단 nav(고정, 64px + 홈 인디케이터 safe-area) 위에 얹는다. bottom:0이면 nav와 겹침.
+            bottom: "calc(64px + env(safe-area-inset-bottom))",
             left: 0,
             right: 0,
             padding: "12px 20px 20px",
