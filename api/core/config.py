@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     clustering_enabled: bool = True
     # learnability_filter_enabled: 학습가치 필터 on/off (긴급 차단 토글). 끄면 전량 통과.
     learnability_filter_enabled: bool = True
+    # 학습 경로 링크 검증: 생성 시점에 리소스 URL 생존 확인 → 죽은 링크(404/410/네트워크 실패)는 검색 링크로 교체.
+    # 긴급 차단 토글(끄면 원본 링크 그대로 저장).
+    link_verification_enabled: bool = True
+    link_verification_timeout_seconds: float = 5.0
     # cluster_similarity_threshold: 코사인 유사도 클러스터 병합 임계치(초기값, 튜닝 대상)
     cluster_similarity_threshold: float = 0.82
     # relevance_min_similarity: 도메인 앵커 유사도 하한(미만이면 off_domain으로 제외)
