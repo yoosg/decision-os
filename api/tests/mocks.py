@@ -22,12 +22,13 @@ VALID_13_SECTION_RESPONSE = json.dumps({
 VALID_SIGNAL_RESPONSE = json.dumps({"title": "LangGraph 통합", "summary": "요약 내용"})
 
 VALID_LEARNING_PATH_RESPONSE = json.dumps({
+    "goal": "LangGraph로 상태 기반 에이전트 워크플로를 직접 구성해본다",
     "resources": [
-        {"type": "official_docs", "title": "공식 문서", "url": "https://example.com/docs", "descriptor": "설명"},
-        {"type": "core_material", "title": "핵심 자료", "url": "https://example.com/core", "descriptor": "설명"},
-        {"type": "github", "title": "GitHub", "url": "https://github.com/example", "descriptor": "설명"},
-        {"type": "practice_example", "title": "실습 예제", "url": "https://example.com/practice", "descriptor": "설명"},
-        {"type": "applied_idea", "title": "적용 아이디어", "url": "", "descriptor": "개인화된 적용 아이디어"},
+        {"type": "official_docs", "title": "공식 문서", "url": "https://example.com/docs", "descriptor": "설명", "objective": "설치와 기본 구조 감잡기"},
+        {"type": "core_material", "title": "핵심 자료", "url": "https://example.com/core", "descriptor": "설명", "objective": "핵심 개념 이해"},
+        {"type": "github", "title": "GitHub", "url": "https://github.com/example", "descriptor": "설명", "objective": "실제 예제 코드 읽기"},
+        {"type": "practice_example", "title": "실습 예제", "url": "https://example.com/practice", "descriptor": "설명", "objective": "직접 따라 만들기"},
+        {"type": "applied_idea", "title": "적용 아이디어", "url": "", "descriptor": "개인화된 적용 아이디어", "objective": "내 프로젝트에 적용 구상"},
     ],
 })
 

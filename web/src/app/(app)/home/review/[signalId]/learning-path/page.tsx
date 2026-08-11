@@ -10,7 +10,7 @@ const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:800
 
 type UIState =
   | { type: "generating" }
-  | { type: "ready"; resources: LearningPathResource[] }
+  | { type: "ready"; resources: LearningPathResource[]; goal?: string }
   | { type: "failed" };
 
 export default function LearningPathPage({ params }: { params: Promise<{ signalId: string }> }) {
@@ -68,9 +68,9 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
   const subscribe = (learningPathId: string) => {
     const supabase = createClient();
 
-    const applyCompleted = (resources: LearningPathResource[]) => {
+    const applyCompleted = (resources: LearningPathResource[], goal?: string) => {
       if (resources.length === 5) {
-        setUIState({ type: "ready", resources });
+        setUIState({ type: "ready", resources, goal });
       } else {
         setUIState({ type: "failed" });
       }
@@ -79,7 +79,7 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
     const fetchAndApplyCompleted = async () => {
       const { data, error } = await supabase
         .from("learning_paths")
-        .select("resources")
+        .select("resources, goal")
         .eq("id", learningPathId)
         .maybeSingle();
       if (error) {
@@ -87,7 +87,10 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
         setUIState({ type: "failed" });
         return;
       }
-      applyCompleted((data?.resources as LearningPathResource[] | undefined) ?? []);
+      applyCompleted(
+        (data?.resources as LearningPathResource[] | undefined) ?? [],
+        (data?.goal as string | undefined) ?? undefined,
+      );
     };
 
     const channel = supabase
@@ -117,7 +120,7 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
     (async () => {
       const { data, error } = await supabase
         .from("learning_paths")
-        .select("status, resources")
+        .select("status, resources, goal")
         .eq("id", learningPathId)
         .maybeSingle();
       if (error) {
@@ -125,7 +128,10 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
         return;
       }
       if (data?.status === "completed") {
-        applyCompleted((data.resources as LearningPathResource[] | undefined) ?? []);
+        applyCompleted(
+          (data.resources as LearningPathResource[] | undefined) ?? [],
+          (data.goal as string | undefined) ?? undefined,
+        );
       } else if (data?.status === "failed") {
         setUIState({ type: "failed" });
       }
@@ -171,7 +177,7 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
 
     const { data: lpRow, error: lpError } = await supabase
       .from("learning_paths")
-      .select("id, status, resources")
+      .select("id, status, resources, goal")
       .eq("decision_id", decisionRow.id)
       .limit(1)
       .maybeSingle();
@@ -181,7 +187,7 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
     if (lpRow) {
       if (lpRow.status === "completed") {
         const resources = (lpRow.resources as LearningPathResource[] | undefined) ?? [];
-        setUIState({ type: "ready", resources });
+        setUIState({ type: "ready", resources, goal: (lpRow.goal as string | undefined) ?? undefined });
         return;
       }
       if (lpRow.status === "failed") {
@@ -338,14 +344,65 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
         )}
 
         {uiState.type === "ready" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {uiState.resources.map((resource, idx) => (
-              <LearningPathCard
-                key={`${resource.type}-${idx}`}
-                resource={resource}
-                onVisit={() => setHasVisitedExternal(true)}
-              />
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {uiState.goal && (
+              <div
+                style={{
+                  backgroundColor: "var(--surface-card)",
+                  borderRadius: "var(--radius-card)",
+                  padding: "var(--card-padding)",
+                  borderLeft: "3px solid var(--border-strong, var(--text-tertiary))",
+                }}
+              >
+                <span
+                  className="text-badge"
+                  style={{ color: "var(--text-secondary)", display: "block", marginBottom: "6px" }}
+                >
+                  이 경로의 목표
+                </span>
+                <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+                  {uiState.goal}
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {uiState.resources.map((resource, idx) => {
+                const isLast = idx === uiState.resources.length - 1;
+                return (
+                  <div key={`${resource.type}-${idx}`} style={{ display: "flex", gap: "12px" }}>
+                    {/* 번호 원 + 세로 연결선 */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "9999px",
+                          border: "1px solid var(--border-subtle)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "var(--text-secondary)",
+                          backgroundColor: "var(--surface-base)",
+                        }}
+                      >
+                        {idx + 1}
+                      </div>
+                      {!isLast && (
+                        <div style={{ flex: 1, width: "1px", backgroundColor: "var(--border-subtle)", minHeight: "12px" }} />
+                      )}
+                    </div>
+                    {/* 카드 */}
+                    <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : "12px" }}>
+                      <LearningPathCard resource={resource} onVisit={() => setHasVisitedExternal(true)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
