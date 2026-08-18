@@ -75,11 +75,12 @@ def run_daily_pipeline(brief_date: str | None = None) -> dict:
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="signal_build_done", processed_count=len(processed_ids))
 
-        # 5. Reviewer (signal_id마다 모든 ai_research 프로젝트)
+        # 5. Reviewer — 기본 off(온디맨드). 토글 on일 때만 시그널×전체 유저 사전생성.
         total_reviews = 0
-        for signal_id in processed_ids:
-            review_ids = review_all_for_signal(signal_id, client, llm, brief_date=brief_date)
-            total_reviews += len(review_ids)
+        if settings.review_pregeneration_enabled:
+            for signal_id in processed_ids:
+                review_ids = review_all_for_signal(signal_id, client, llm, brief_date=brief_date)
+                total_reviews += len(review_ids)
         pipeline_log(stage="orchestrator", brief_date=brief_date, user_count=0,
                      event="review_done", review_count=total_reviews)
 
