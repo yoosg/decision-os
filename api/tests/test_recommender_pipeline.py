@@ -454,6 +454,7 @@ def test_run_daily_pipeline_calls_stages_in_order():
     with (
         # Story 6.1: stub 모드로 고정 — StubCollector.collect 경로 검증(오프라인)
         patch("pipeline.orchestrator.settings.collector_mode", "stub"),
+        patch("pipeline.orchestrator.settings.review_pregeneration_enabled", True),
         patch("pipeline.orchestrator.StubCollector.collect", mock_collect),
         patch("pipeline.orchestrator.normalize", mock_normalize),
         patch("pipeline.orchestrator.build_signals", mock_build),
@@ -984,3 +985,48 @@ def test_brief_completes_when_impression_logging_raises():
     assert brief_id == "brief-uuid"  # 로깅 실패에도 생성 완료
     last_update = client._daily_briefs.update.call_args_list[-1][0][0]
     assert last_update["status"] == "completed"
+
+
+def test_run_daily_pipeline_skips_review_when_pregeneration_off():
+    """review_pregeneration_enabled=False면 배치가 step5(review_all_for_signal)를 건너뛴다."""
+    import pipeline.orchestrator
+    call_order = []
+
+    def mock_collect(self):
+        call_order.append("collect")
+        from pipeline.models import RawArticle
+        return [RawArticle("LangGraph", "Title", "https://a.com", "official_blog")]
+
+    def mock_normalize(articles, signal_date, client, brief_date):
+        call_order.append("normalize")
+        return ["sig-1"]
+
+    def mock_build(signal_ids, client, llm, brief_date):
+        call_order.append("build")
+        return ["sig-1"]
+
+    def mock_review(signal_id, client, llm, brief_date):
+        call_order.append("review")
+        return ["rev-1"]
+
+    def mock_recommend(signal_ids, client, brief_date, llm=None):
+        call_order.append("recommend")
+        return 1
+
+    with (
+        patch("pipeline.orchestrator.settings.collector_mode", "stub"),
+        patch("pipeline.orchestrator.settings.review_pregeneration_enabled", False),
+        patch("pipeline.orchestrator.StubCollector.collect", mock_collect),
+        patch("pipeline.orchestrator.normalize", mock_normalize),
+        patch("pipeline.orchestrator.build_signals", mock_build),
+        patch("pipeline.orchestrator.review_all_for_signal", mock_review),
+        patch("pipeline.orchestrator.run_recommender", mock_recommend),
+        patch("pipeline.orchestrator.get_supabase", return_value=MagicMock()),
+        patch("pipeline.orchestrator.get_llm_provider", return_value=MagicMock()),
+    ):
+        result = pipeline.orchestrator.run_daily_pipeline("2026-07-24")
+
+    assert "review" not in call_order
+    assert call_order == ["collect", "normalize", "build", "recommend"]
+    assert result["error"] is None
+    assert result["briefs"] == 1

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # 긴급 차단 토글(끄면 원본 링크 그대로 저장).
     link_verification_enabled: bool = True
     link_verification_timeout_seconds: float = 5.0
+    # review_pregeneration_enabled: 배치(06:00)의 리뷰 사전생성 on/off.
+    # 기본 False = 온디맨드(유저가 시그널 상세를 열 때만 생성). 긴급 시 True로 사전생성 복귀.
+    review_pregeneration_enabled: bool = False
     # cluster_similarity_threshold: 코사인 유사도 클러스터 병합 임계치(초기값, 튜닝 대상)
     cluster_similarity_threshold: float = 0.82
     # relevance_min_similarity: 도메인 앵커 유사도 하한(미만이면 off_domain으로 제외)
