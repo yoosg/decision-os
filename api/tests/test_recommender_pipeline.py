@@ -1104,3 +1104,49 @@ def test_score_signals_applies_lexical_boost(monkeypatch):
         signals, user, "u1", MagicMock(), "2026-08-19", llm=None, signal_embeddings=None
     )
     assert ordered[0][0] == "sig-b"
+
+
+# ─── _source_boost (전역 도구-릴리스 프로비넌스 가점) ──────────────────────────────
+
+def test_source_boost_github_release():
+    from pipeline.recommender import _source_boost, _TOOL_RELEASE_BOOST
+    sig = {"signal_sources": [{"source_type": "github"}]}
+    assert _source_boost(sig) == _TOOL_RELEASE_BOOST
+
+
+def test_source_boost_non_tool_sources_zero():
+    from pipeline.recommender import _source_boost
+    sig = {"signal_sources": [{"source_type": "hn"}, {"source_type": "official_blog"}]}
+    assert _source_boost(sig) == 0.0
+
+
+def test_source_boost_missing_sources_zero():
+    from pipeline.recommender import _source_boost
+    assert _source_boost({}) == 0.0
+    assert _source_boost({"signal_sources": None}) == 0.0
+    assert _source_boost({"signal_sources": []}) == 0.0
+
+
+def test_source_boost_mixed_with_github_boosts():
+    from pipeline.recommender import _source_boost, _TOOL_RELEASE_BOOST
+    sig = {"signal_sources": [{"source_type": "hn"}, {"source_type": "github"}]}
+    assert _source_boost(sig) == _TOOL_RELEASE_BOOST
+
+
+def test_score_signals_applies_source_boost(monkeypatch):
+    """base 평탄화(0.1)·빈 프로필(렉시컬 0)에서 github 소스 시그널이 source_boost로 1위가 된다.
+    match id를 정렬상 뒤(sig-b)로 둬 RED가 확실히 실패하게 설계."""
+    import pipeline.recommender as rec
+    monkeypatch.setattr(rec, "compute_relevance_score", lambda sig, prof: 0.1)
+    signals = [
+        {"id": "sig-a", "technology_name": "Mermaid", "title": "", "summary": "diagrams",
+         "popularity": 0, "source_authority": 2, "published_at": None,
+         "signal_sources": [{"source_type": "hn"}]},
+        {"id": "sig-b", "technology_name": "LangGraph release", "title": "", "summary": "x",
+         "popularity": 0, "source_authority": 2, "published_at": None,
+         "signal_sources": [{"source_type": "github"}]},
+    ]
+    ordered, _variant = rec._score_signals(
+        signals, {}, "u1", MagicMock(), "2026-08-19", llm=None, signal_embeddings=None
+    )
+    assert ordered[0][0] == "sig-b"
