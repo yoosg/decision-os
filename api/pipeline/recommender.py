@@ -46,6 +46,11 @@ _STACK_BOOST = 0.3
 _INTEREST_BOOST = 0.2
 _LEXICAL_BOOST_CAP = 0.6
 
+# ── 전역 도구-릴리스 프로비넌스 가점: 큐레이션된 GitHub 릴리스 피드 시그널을 상위로 ──────
+# 언어 무관(소스 메타로 판정). 일반 블로그/HN 잡담보다 "진짜 도구 릴리스"를 우선.
+_TOOL_RELEASE_SOURCE_TYPES = {"github"}
+_TOOL_RELEASE_BOOST = 0.3
+
 
 def _clamp(x: float) -> float:
     """relevance_score 불변식: [0.1, 1.0]로 강제 (daily_brief_signals.relevance_score는 DB CHECK 없음)."""
@@ -75,6 +80,15 @@ def _lexical_boost(signal: dict, user_profile: dict) -> float:
         if item and item <= text_tokens:
             boost += _INTEREST_BOOST
     return min(boost, _LEXICAL_BOOST_CAP)
+
+
+def _source_boost(signal: dict) -> float:
+    """시그널의 소스 중 하나라도 큐레이션 도구-릴리스 피드(_TOOL_RELEASE_SOURCE_TYPES)면 가점.
+    signal_sources는 [{"source_type": ...}] 중첩 리스트(없으면 0.0)."""
+    for src in (signal.get("signal_sources") or []):
+        if (src or {}).get("source_type") in _TOOL_RELEASE_SOURCE_TYPES:
+            return _TOOL_RELEASE_BOOST
+    return 0.0
 
 
 def _norm(vec: list[float]) -> float:
@@ -391,7 +405,7 @@ def _score_signals(
             # AD-5 폴백: llm None, 빈 프로필, 임베딩 실패 → substring(정상 경로엔 관여 안 함)
             base = compute_relevance_score(sig, user_profile)
         # 하이브리드: 임베딩 코사인 위에 명시적 스택/관심 가점(clamp로 불변식 유지)
-        base_scores[sid] = _clamp(base + _lexical_boost(sig, user_profile))
+        base_scores[sid] = _clamp(base + _lexical_boost(sig, user_profile) + _source_boost(sig))
 
     # ── (3) Memory RAG 블렌드(보유 시에만). 실패는 base로 안전 폴백 ──
     # variant(6.5): 기본 coldstart, memory_rag_applied 경로에서만 rag로 승격.
@@ -519,7 +533,7 @@ def create_daily_brief_for_user(
     if signal_ids:
         sig_result = (
             client.table("signals")
-            .select("id,technology_name,title,summary,published_at,popularity,source_authority")
+            .select("id,technology_name,title,summary,published_at,popularity,source_authority,signal_sources(source_type)")
             .in_("id", signal_ids)
             .eq("status", "processed")
             .execute()
