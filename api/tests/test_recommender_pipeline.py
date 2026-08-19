@@ -13,7 +13,9 @@ from pipeline.recommender import (
     _W_RECENCY,
     _W_RELEVANCE,
     _authority_norm,
+    _clamp,
     _embed_signal_list,
+    _lexical_boost,
     _mmr_rerank,
     _popularity_norm,
     _recency_norm,
@@ -30,6 +32,11 @@ from pipeline.recommender import (
 # 중립 결합값 헬퍼 — combined = _W_RELEVANCE*blended + _W_RECENCY*0.5 (pop=0, auth=0).
 def _combine_neutral(blended: float) -> float:
     return _W_RELEVANCE * blended + _W_RECENCY * 0.5
+
+
+# 하이브리드 base = clamp(substring/코사인 base + 렉시컬 가점) — 실제 _score_signals와 동일.
+def _base_boosted(sig: dict, profile: dict) -> float:
+    return _clamp(compute_relevance_score(sig, profile) + _lexical_boost(sig, profile))
 
 
 # Story 6.5: _score_signals가 (ordered, variant) 튜플을 반환하도록 확장됐다.
@@ -568,7 +575,7 @@ def test_score_signals_no_llm_is_coldstart():
     client = MagicMock()
     scored = _order([_SIG], profile, "u", client, "d", None, None)
     # v2: base=substring 폴백, combined = 0.7*base + 0.15*0.5(중립 recency)
-    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
+    assert scored[0][1] == pytest.approx(_combine_neutral(_base_boosted(_SIG, profile)))
     client.rpc.assert_not_called()
 
 
@@ -578,7 +585,7 @@ def test_score_signals_coldstart_when_no_memories():
     client = _rag_score_client(memory_count=0)
     # MagicMock llm은 embed_text 미설정 → 프로필 임베딩 norm 0 → base=substring 폴백(AD-5)
     scored = _order([_SIG], profile, "u", client, "d", MagicMock(), _EMB)
-    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
+    assert scored[0][1] == pytest.approx(_combine_neutral(_base_boosted(_SIG, profile)))
     client.rpc.assert_not_called()
 
 
@@ -886,7 +893,7 @@ def test_profile_embed_failure_falls_back_to_substring():
     llm.embed_text.side_effect = RuntimeError("profile embed boom")
     client = _rag_score_client(memory_count=0)
     scored = _order([_SIG], profile, "u", client, "d", llm, _EMB)
-    assert scored[0][1] == pytest.approx(_combine_neutral(compute_relevance_score(_SIG, profile)))
+    assert scored[0][1] == pytest.approx(_combine_neutral(_base_boosted(_SIG, profile)))
 
 
 def test_rag_symmetry_uses_summary_query_and_single_embedding():
@@ -1030,3 +1037,70 @@ def test_run_daily_pipeline_skips_review_when_pregeneration_off():
     assert call_order == ["collect", "normalize", "build", "recommend"]
     assert result["error"] is None
     assert result["briefs"] == 1
+
+
+# ─── _lexical_boost (하이브리드 관련도 가점) ──────────────────────────────────────
+
+def test_lexical_boost_stack_match_beats_no_match():
+    from pipeline.recommender import _lexical_boost
+    sig_match = {"technology_name": "LangGraph 1.2", "title": "", "summary": "release"}
+    sig_none = {"technology_name": "Mermaid editor", "title": "", "summary": "diagrams"}
+    user = {"tech_stack": ["LangGraph"], "interests": []}
+    assert _lexical_boost(sig_match, user) > _lexical_boost(sig_none, user)
+    assert _lexical_boost(sig_none, user) == 0.0
+
+
+def test_lexical_boost_go_does_not_match_google():
+    from pipeline.recommender import _lexical_boost
+    sig = {"technology_name": "Google AI", "title": "", "summary": "google blog"}
+    user = {"tech_stack": ["Go"], "interests": []}
+    assert _lexical_boost(sig, user) == 0.0
+
+
+def test_lexical_boost_interest_match():
+    from pipeline.recommender import _lexical_boost, _INTEREST_BOOST
+    sig = {"technology_name": "RAG pipeline", "title": "", "summary": "retrieval"}
+    user = {"tech_stack": [], "interests": ["RAG"]}
+    assert _lexical_boost(sig, user) == _INTEREST_BOOST
+
+
+def test_lexical_boost_multitoken_requires_all_tokens():
+    from pipeline.recommender import _lexical_boost
+    sig_partial = {"technology_name": "llama release", "title": "", "summary": ""}
+    sig_full = {"technology_name": "llama index update", "title": "", "summary": ""}
+    user = {"tech_stack": ["llama index"], "interests": []}
+    assert _lexical_boost(sig_partial, user) == 0.0
+    assert _lexical_boost(sig_full, user) > 0.0
+
+
+def test_lexical_boost_capped():
+    from pipeline.recommender import _lexical_boost, _LEXICAL_BOOST_CAP
+    sig = {"technology_name": "python fastapi nextjs rag agent", "title": "", "summary": ""}
+    user = {"tech_stack": ["python", "fastapi", "nextjs"], "interests": ["rag", "agent"]}
+    # 3*0.3 + 2*0.2 = 1.3 → cap 0.6
+    assert _lexical_boost(sig, user) == _LEXICAL_BOOST_CAP
+
+
+def test_lexical_boost_empty_profile():
+    from pipeline.recommender import _lexical_boost
+    sig = {"technology_name": "LangGraph", "title": "", "summary": ""}
+    assert _lexical_boost(sig, {"tech_stack": [], "interests": []}) == 0.0
+
+
+def test_score_signals_applies_lexical_boost(monkeypatch):
+    """base를 평탄화(0.1)해도 스택 매칭 시그널이 lexical_boost로 1위가 된다.
+    match 시그널 id를 정렬상 뒤(sig-b)로 둬, 가점 없으면 tie-break(signal_id 오름차순)로
+    non-match(sig-a)가 1위가 되도록 → RED가 확실히 실패하게 설계."""
+    import pipeline.recommender as rec
+    monkeypatch.setattr(rec, "compute_relevance_score", lambda sig, prof: 0.1)
+    signals = [
+        {"id": "sig-a", "technology_name": "Mermaid editor", "title": "", "summary": "diagrams",
+         "popularity": 0, "source_authority": 0, "published_at": None},
+        {"id": "sig-b", "technology_name": "LangGraph release", "title": "", "summary": "x",
+         "popularity": 0, "source_authority": 0, "published_at": None},
+    ]
+    user = {"tech_stack": ["LangGraph"], "interests": []}
+    ordered, _variant = rec._score_signals(
+        signals, user, "u1", MagicMock(), "2026-08-19", llm=None, signal_embeddings=None
+    )
+    assert ordered[0][0] == "sig-b"

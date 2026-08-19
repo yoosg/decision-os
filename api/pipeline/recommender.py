@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import date, datetime, timezone, timedelta
 
 from supabase import Client
@@ -38,10 +39,42 @@ _RECENCY_HALFLIFE_DAYS = 7
 # MMR 다양성 계수: mmr = λ*combined − (1−λ)*max_sim. λ가 클수록 관련도 우선, 작을수록 다양성 우선.
 _MMR_LAMBDA = 0.7
 
+# ── 하이브리드 관련도: 명시적 스택/관심 렉시컬 가점(임베딩 위에 얹음) ──────────────
+# base = clamp(cosine + lexical_boost). "내가 쓰는 도구" 소식을 상위로. 토큰 집합 멤버십
+# 매칭이라 "go"가 "google"에 substring 오매칭되지 않는다(v1 폐기 사유 회피).
+_STACK_BOOST = 0.3
+_INTEREST_BOOST = 0.2
+_LEXICAL_BOOST_CAP = 0.6
+
 
 def _clamp(x: float) -> float:
     """relevance_score 불변식: [0.1, 1.0]로 강제 (daily_brief_signals.relevance_score는 DB CHECK 없음)."""
     return max(min(x, 1.0), 0.1)
+
+
+def _tokenize(text: str) -> set[str]:
+    """소문자 영숫자 토큰 집합. 단어 경계 매칭용."""
+    return set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+
+
+def _lexical_boost(signal: dict, user_profile: dict) -> float:
+    """시그널 텍스트 토큰에 유저 스택/관심 항목(토큰화)이 부분집합으로 포함되면 가점.
+    스택당 _STACK_BOOST, 관심당 _INTEREST_BOOST, 합산 상한 _LEXICAL_BOOST_CAP. 무매칭 0.0."""
+    text_tokens = _tokenize(
+        f"{signal.get('technology_name') or ''} {signal.get('title') or ''} {signal.get('summary') or ''}"
+    )
+    if not text_tokens:
+        return 0.0
+    boost = 0.0
+    for tech in (user_profile.get("tech_stack") or []):
+        item = _tokenize(tech)
+        if item and item <= text_tokens:
+            boost += _STACK_BOOST
+    for interest in (user_profile.get("interests") or []):
+        item = _tokenize(interest)
+        if item and item <= text_tokens:
+            boost += _INTEREST_BOOST
+    return min(boost, _LEXICAL_BOOST_CAP)
 
 
 def _norm(vec: list[float]) -> float:
@@ -353,10 +386,12 @@ def _score_signals(
         emb = embeddings.get(sid)
         sig_norm = norms.get(sid, 0.0)
         if profile_emb is not None and profile_norm > 0 and emb is not None and sig_norm > 0:
-            base_scores[sid] = compute_relevance_score_v2(emb, sig_norm, profile_emb, profile_norm)
+            base = compute_relevance_score_v2(emb, sig_norm, profile_emb, profile_norm)
         else:
             # AD-5 폴백: llm None, 빈 프로필, 임베딩 실패 → substring(정상 경로엔 관여 안 함)
-            base_scores[sid] = compute_relevance_score(sig, user_profile)
+            base = compute_relevance_score(sig, user_profile)
+        # 하이브리드: 임베딩 코사인 위에 명시적 스택/관심 가점(clamp로 불변식 유지)
+        base_scores[sid] = _clamp(base + _lexical_boost(sig, user_profile))
 
     # ── (3) Memory RAG 블렌드(보유 시에만). 실패는 base로 안전 폴백 ──
     # variant(6.5): 기본 coldstart, memory_rag_applied 경로에서만 rag로 승격.
