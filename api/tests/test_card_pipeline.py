@@ -63,11 +63,17 @@ def _data_map():
     }
 
 
-def _completed_result(client):
+def _completed_payload(client):
+    """완료 전이 update 페이로드 전체를 반환."""
     for name, payload in client.captures:
         if name == "reviews" and payload.get("status") == "completed":
-            return payload["result"]
+            return payload
     return None
+
+
+def _completed_result(client):
+    p = _completed_payload(client)
+    return p["result"] if p else None
 
 
 def test_pipeline_stores_project_card_when_toggle_on(monkeypatch):
@@ -81,11 +87,15 @@ def test_pipeline_stores_project_card_when_toggle_on(monkeypatch):
     )
 
     assert ok is True
-    result = _completed_result(client)
-    assert result is not None
+    completed = _completed_payload(client)
+    assert completed is not None
+    # 봉투(result JSON) review_type
+    result = completed["result"]
     assert result["review_type"] == "project_card"
     assert "milestones" in result["payload"]
     assert "skill_label" in result["payload"]
+    # 행 수준 컬럼 review_type (봉투와 일치해야 함)
+    assert completed["review_type"] == "project_card"
 
 
 def test_pipeline_stores_research_when_toggle_off(monkeypatch):
@@ -99,7 +109,11 @@ def test_pipeline_stores_research_when_toggle_off(monkeypatch):
     )
 
     assert ok is True
-    result = _completed_result(client)
-    assert result is not None
+    completed = _completed_payload(client)
+    assert completed is not None
+    # 봉투(result JSON) review_type
+    result = completed["result"]
     assert result["review_type"] == "research"
     assert "one_line_definition" in result["payload"]
+    # 행 수준 컬럼 review_type (봉투와 일치해야 함)
+    assert completed["review_type"] == "research"

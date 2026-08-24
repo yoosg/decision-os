@@ -127,6 +127,7 @@ def _execute_review_pipeline(
         # 7) completed 상태 전이 (불변)
         client.table("reviews").update({
             "status": "completed",
+            "review_type": review_type_value,
             "result": result,
             "completed_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", review_id).execute()
