@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pipeline.reviewer as reviewer
 from tests.mocks import MockLLMProvider
 

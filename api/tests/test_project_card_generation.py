@@ -1,4 +1,6 @@
-from pipeline.llm.base import ReviewContext
+import pytest
+
+from pipeline.llm.base import LLMProviderError, ReviewContext
 from pipeline.llm.prompts import parse_and_validate_card
 from tests.mocks import VALID_CARD_RESPONSE, MockLLMProvider
 
@@ -16,9 +18,6 @@ def test_valid_card_response_constant_passes_validation():
 
 
 def test_mock_generate_card_raises_when_configured():
-    import pytest
-    from pipeline.llm.base import LLMProviderError
-
     llm = MockLLMProvider(raise_error=True)
     ctx = ReviewContext(technology_name="x", signal_sources=[])
     with pytest.raises(LLMProviderError):
