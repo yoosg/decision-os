@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from supabase import Client
 
 from pipeline.llm.base import LLMProvider, LLMProviderError, ReviewContext, REQUIRED_SECTIONS
-from pipeline.llm.factory import get_llm_provider
+from pipeline.llm.prompts import parse_and_validate_card
 from pipeline.logger import pipeline_log
+from core.config import settings
 from core.supabase import get_supabase
 
 _log = logging.getLogger(__name__)
@@ -60,9 +61,10 @@ def _execute_review_pipeline(
         profile = profile_data[0] if profile_data else {}
 
         # 4) context_snapshot 저장
+        review_type_value = "project_card" if settings.beginner_card_mode_enabled else "research"
         context_snapshot = {
             "schema_version": 1,
-            "review_type": "research",
+            "review_type": review_type_value,
             "payload": {
                 "signal": {
                     "id": signal_id,
@@ -93,27 +95,32 @@ def _execute_review_pipeline(
             user_interests=profile.get("interests") or [],
             user_experience_level=profile.get("experience_level"),
         )
-        llm_response = llm.generate(context)
 
-        # 6) 13섹션 파싱 및 검증
-        payload = json.loads(llm_response.content)
-        missing = [k for k in REQUIRED_SECTIONS if k not in payload]
-        if missing:
-            raise ValueError(f"LLM 응답에 필수 섹션 누락: {missing}")
+        # 6) 생성 + 검증 (토글에 따라 카드 / 13섹션)
+        if settings.beginner_card_mode_enabled:
+            llm_response = llm.generate_card(context)
+            parse_and_validate_card(llm_response.content)
+            payload = json.loads(llm_response.content)
+        else:
+            llm_response = llm.generate(context)
+            payload = json.loads(llm_response.content)
+            missing = [k for k in REQUIRED_SECTIONS if k not in payload]
+            if missing:
+                raise ValueError(f"LLM 응답에 필수 섹션 누락: {missing}")
 
-        ltd = payload.get("learning_time_difficulty")
-        if not isinstance(ltd, dict) or "estimated_hours" not in ltd or "difficulty" not in ltd:
-            raise ValueError(f"learning_time_difficulty 하위 필드 누락 또는 형식 오류: {ltd}")
+            ltd = payload.get("learning_time_difficulty")
+            if not isinstance(ltd, dict) or "estimated_hours" not in ltd or "difficulty" not in ltd:
+                raise ValueError(f"learning_time_difficulty 하위 필드 누락 또는 형식 오류: {ltd}")
 
-        honest_box = payload.get("honest_box")
-        if not isinstance(honest_box, dict):
-            payload["honest_box"] = {"content": str(honest_box) if honest_box is not None else "", "severity": "standard"}
-        elif honest_box.get("severity") not in ("standard", "high"):
-            payload["honest_box"]["severity"] = "standard"
+            honest_box = payload.get("honest_box")
+            if not isinstance(honest_box, dict):
+                payload["honest_box"] = {"content": str(honest_box) if honest_box is not None else "", "severity": "standard"}
+            elif honest_box.get("severity") not in ("standard", "high"):
+                payload["honest_box"]["severity"] = "standard"
 
         result = {
             "schema_version": 1,
-            "review_type": "research",
+            "review_type": review_type_value,
             "payload": payload,
         }
 
@@ -189,6 +196,7 @@ def run_review_from_pending(review_id: str, signal_id: str, project_id: str) -> 
     BackgroundTask 진입점. pending INSERT는 이미 완료된 상태이므로
     step 2(processing 전이)부터 시작한다.
     """
+    from pipeline.llm.factory import get_llm_provider  # lazy import: Gemini 의존성 분리
     client = get_supabase()
     llm = get_llm_provider()
     _execute_review_pipeline(review_id, signal_id, project_id, client, llm)

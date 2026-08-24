@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # review_pregeneration_enabled: 배치(06:00)의 리뷰 사전생성 on/off.
     # 기본 False = 온디맨드(유저가 시그널 상세를 열 때만 생성). 긴급 시 True로 사전생성 복귀.
     review_pregeneration_enabled: bool = False
+    # beginner_card_mode_enabled: 리뷰 생성 시 13섹션 Research Review 대신
+    # 입문자용 7블록 프로젝트 카드를 생성/저장(review_type="project_card").
+    # 기본 False = 안전 롤아웃(켜기 전까지 기존 경로 유지).
+    beginner_card_mode_enabled: bool = False
     # cluster_similarity_threshold: 코사인 유사도 클러스터 병합 임계치(초기값, 튜닝 대상)
     cluster_similarity_threshold: float = 0.82
     # relevance_min_similarity: 도메인 앵커 유사도 하한(미만이면 off_domain으로 제외)
