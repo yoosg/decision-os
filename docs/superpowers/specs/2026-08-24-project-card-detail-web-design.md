@@ -101,16 +101,19 @@ interface ProjectCardPayload {
 백엔드가 completed 전 11키 + `difficulty` 허용값을 검증하므로 payload는 신뢰한다.
 다만 배열 필드(`milestones`, `troubleshooting`, `success_checklist`)는 방어적으로 `?? []` 폴백만 얇게 둔다.
 
-## 테스트 (Vitest, 실행되는 `*.vitest.tsx`)
+## 검증 방식
 
-- `project-card-content.vitest.tsx`
-  - 픽스처 payload로 7블록 전부 렌더 확인
-  - 난이도 뱃지 매핑(first_step→첫걸음 등)
-  - ④ 체크박스 토글 → 진도 카운트 갱신
-  - ③ 복사 버튼이 `navigator.clipboard.writeText` 호출
-- `review-page-content` 분기
-  - `review_type="project_card"` → 카드 렌더
-  - `"research"` / `undefined` → 기존 13섹션 렌더
+**이 브랜치에는 실행 가능한 테스트 러너가 없다**(package.json에 `test` 스크립트/vitest 없음).
+기존 `*.test.tsx`는 상단에 "Jest/Vitest 미설정 — 스펙 문서 역할"이라 명시된 **미실행 스펙 문서**다.
+따라서 기존 컨벤션을 따른다:
+
+1. **스펙 문서** (`*.test.tsx`, 미실행): 기존 파일들과 동일한 헤더 주석 + `@ts-nocheck` + jest-style API로
+   의도한 동작을 문서화한다.
+   - `project-card-content.test.tsx`: 7블록 전부 렌더 / 난이도 뱃지 매핑(first_step→첫걸음) /
+     ④ 체크박스 토글 → 진도 카운트 / ③ 복사 버튼이 `navigator.clipboard.writeText` 호출
+   - `review-page-content` 분기: `review_type="project_card"` → 카드, `"research"`/`undefined` → 13섹션
+2. **타입체크**: `npx tsc --noEmit`로 빌드 타입 통과 확인.
+3. **시각 확인**: Playwright로 카드 상세화면을 실제 렌더해 7블록·인터랙션 확인(스크린샷).
 
 ## 비범위 (다음 슬라이스)
 
