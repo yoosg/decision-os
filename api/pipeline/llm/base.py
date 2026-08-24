@@ -77,6 +77,11 @@ class LLMProvider(ABC):
         ...
 
     @abstractmethod
+    def generate_card(self, context: ReviewContext) -> LLMResponse:
+        """입문자용 7블록 프로젝트 카드 JSON 생성 (제네릭, 개인화 없음)."""
+        ...
+
+    @abstractmethod
     def build_signal_title_summary(self, technology_name: str, signal_sources: list[dict]) -> LLMResponse:
         """Signal 기술명·출처로 AI 제목·요약 생성. {"title": "...", "summary": "..."} JSON 반환."""
         ...

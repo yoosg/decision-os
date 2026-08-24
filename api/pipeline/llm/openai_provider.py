@@ -44,6 +44,24 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             raise LLMProviderError(str(e)) from e
 
+    def generate_card(self, context: ReviewContext) -> LLMResponse:
+        try:
+            response = self._client.responses.create(
+                model=self._model,
+                instructions=prompts.PROJECT_CARD_SYSTEM_PROMPT,
+                input=f"{prompts.build_card_user_content(context)}\n\n반드시 JSON 객체로 응답하세요.",
+                text={"format": {"type": "json_object"}},
+            )
+            raw = response.output_text
+            prompts.parse_and_validate_card(raw)
+            return LLMResponse(content=raw, model=self._model)
+        except LLMProviderError:
+            raise
+        except OpenAIError as e:
+            raise LLMProviderError(str(e)) from e
+        except Exception as e:
+            raise LLMProviderError(str(e)) from e
+
     def build_signal_title_summary(self, technology_name: str, signal_sources: list[dict]) -> LLMResponse:
         # OpenAI Responses API의 json_object 포맷은 input 메시지에 'json' 단어가 있어야 한다
         # (instructions만으로는 부족 → 400). 마지막 줄에 JSON 지시를 명시.

@@ -34,6 +34,26 @@ VALID_LEARNING_PATH_RESPONSE = json.dumps({
 
 VALID_MEMORY_RESPONSE = json.dumps({"memory_type": "outcome_history", "summary": "요약 내용"})
 
+VALID_CARD_RESPONSE = json.dumps({
+    "skill_label": "웹폼 만들고 데이터 저장하기",
+    "difficulty": "first_step",
+    "estimated_minutes": 30,
+    "deliverable": "이름과 메모를 입력해 저장하는 간단한 웹페이지",
+    "success_preview": "저장을 누르면 목록에 내가 쓴 내용이 나타난다",
+    "prerequisites": "없어요, 바로 시작!",
+    "how_to_start": "AI 코딩 도구를 열고 아래 예시 프롬프트를 붙여넣어 시작하세요.",
+    "example_prompt": "이름과 메모를 입력받아 저장하는 간단한 웹페이지를 만들어줘.",
+    "milestones": [
+        {"action": "화면 뼈대 만들기", "done_signal": "입력칸이 화면에 뜬다"},
+        {"action": "저장 기능 붙이기", "done_signal": "제출하면 데이터가 남는다"},
+        {"action": "확인하고 다듬기", "done_signal": "저장한 내용이 다시 보인다"},
+    ],
+    "troubleshooting": [
+        {"symptom": "저장을 눌러도 반응이 없다", "fix": "'저장 버튼을 눌렀을 때 저장되도록 고쳐줘'라고 요청하세요."},
+    ],
+    "success_checklist": ["입력칸이 보인다", "저장하면 목록에 나타난다"],
+})
+
 
 class MockLLMProvider(LLMProvider):
     def __init__(
@@ -42,17 +62,24 @@ class MockLLMProvider(LLMProvider):
         raise_error: bool = False,
         signal_content: str | None = None,
         learning_path_content: str | None = None,
+        card_content: str | None = None,
     ):
         self._content = content
         self._raise_error = raise_error
         self._signal_content = signal_content or VALID_SIGNAL_RESPONSE
         self._learning_path_content = learning_path_content or VALID_LEARNING_PATH_RESPONSE
+        self._card_content = card_content or VALID_CARD_RESPONSE
         self.build_signal_calls: list[tuple] = []
 
     def generate(self, context: ReviewContext) -> LLMResponse:
         if self._raise_error:
             raise LLMProviderError("mock LLM error")
         return LLMResponse(content=self._content, model="mock")
+
+    def generate_card(self, context: ReviewContext) -> LLMResponse:
+        if self._raise_error:
+            raise LLMProviderError("mock LLM error")
+        return LLMResponse(content=self._card_content, model="mock")
 
     def build_signal_title_summary(self, technology_name: str, signal_sources: list[dict]) -> LLMResponse:
         self.build_signal_calls.append((technology_name, signal_sources))
