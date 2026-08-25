@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from core.schemas import APIResponse
 from core.supabase import get_supabase
 from middleware.auth import get_current_user
-from pipeline.reviewer import run_review_from_pending
+from pipeline.reviewer import resolve_review_type, run_review_from_pending
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
@@ -69,7 +69,7 @@ def trigger_review(
             "project_id": project_id,
             "signal_id": body.signal_id,
             "playbook_type": "ai_research",
-            "review_type": "research",
+            "review_type": resolve_review_type(),
             "status": "pending",
         })
         .execute()

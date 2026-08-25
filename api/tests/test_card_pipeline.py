@@ -115,3 +115,13 @@ def test_pipeline_stores_research_when_toggle_off(monkeypatch):
     assert "one_line_definition" in result["payload"]
     # 행 수준 컬럼 review_type (봉투와 일치해야 함)
     assert completed["review_type"] == "research"
+
+
+def test_resolve_review_type_toggle_on(monkeypatch):
+    monkeypatch.setattr(reviewer.settings, "beginner_card_mode_enabled", True)
+    assert reviewer.resolve_review_type() == "project_card"
+
+
+def test_resolve_review_type_toggle_off(monkeypatch):
+    monkeypatch.setattr(reviewer.settings, "beginner_card_mode_enabled", False)
+    assert reviewer.resolve_review_type() == "research"

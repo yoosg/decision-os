@@ -233,3 +233,48 @@ def test_run_review_from_pending_sets_failed_on_error():
         run_review_from_pending(TEST_REVIEW_ID, TEST_SIGNAL_ID, TEST_PROJECT_ID)
 
     assert "failed" in reviews_update_statuses
+
+
+def test_trigger_review_pending_review_type_follows_card_toggle(monkeypatch):
+    """카드 모드 ON이면 pending INSERT의 review_type이 project_card로 들어간다."""
+    import middleware.auth as auth_module
+    import pipeline.reviewer as reviewer_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+    monkeypatch.setattr(reviewer_module.settings, "beginner_card_mode_enabled", True)
+
+    insert_payloads = []
+    reviews_call_count = [0]
+
+    def table_side_effect(table_name):
+        c = _chain()
+        if table_name == "projects":
+            c.execute.return_value.data = [{"id": TEST_PROJECT_ID}]
+        elif table_name == "reviews":
+            reviews_call_count[0] += 1
+            if reviews_call_count[0] == 1:
+                c.execute.return_value.data = []  # 멱등성 체크: 기존 없음
+            else:
+                c.execute.return_value.data = [{"id": TEST_REVIEW_ID}]
+
+                def capture_insert(payload):
+                    insert_payloads.append(payload)
+                    return c
+                c.insert.side_effect = capture_insert
+        return c
+
+    mock_client = MagicMock()
+    mock_client.table.side_effect = table_side_effect
+
+    with patch("routers.reviews.get_supabase", return_value=mock_client), \
+         patch("routers.reviews.run_review_from_pending"):
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/reviews/trigger",
+                json={"signal_id": TEST_SIGNAL_ID},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 202
+    assert len(insert_payloads) == 1
+    assert insert_payloads[0]["review_type"] == "project_card"
