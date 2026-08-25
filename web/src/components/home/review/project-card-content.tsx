@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ProjectCardBlocks, CARD_DIFFICULTY_LABEL, type ProjectCardPayload } from "./project-card-blocks";
+import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "./project-card-blocks";
 
 interface Props {
   signalId: string;
@@ -40,18 +40,7 @@ export function ProjectCardContent({ signalTitle, payload }: Props) {
 
       {/* 헤더 */}
       <h1 className="text-screen-title" style={{ marginBottom: "12px" }}>{signalTitle}</h1>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-        <span
-          className="text-label"
-          style={{ background: "var(--surface-card, #F2F2F2)", borderRadius: "9999px", padding: "4px 12px" }}
-        >
-          🏷️ {CARD_DIFFICULTY_LABEL[payload.difficulty]}
-        </span>
-        <span className="text-label" style={{ color: "var(--text-secondary)" }}>⏱ {payload.estimated_minutes}분</span>
-      </div>
-      <p className="text-body" style={{ color: "var(--text-secondary)", marginBottom: "24px" }}>
-        🎓 {payload.skill_label}
-      </p>
+      <ProjectCardMeta payload={payload} />
 
       <ProjectCardBlocks payload={payload} />
 
