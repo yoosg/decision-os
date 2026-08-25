@@ -255,6 +255,20 @@ def test_reviewer_inserts_pending_review():
     assert insert_payload["project_id"] == "proj-uuid"
 
 
+def test_reviewer_pending_insert_review_type_follows_card_toggle(monkeypatch):
+    """카드 모드 ON이면 배치 경로 pending INSERT의 review_type도 project_card."""
+    import pipeline.reviewer as reviewer_module
+    monkeypatch.setattr(reviewer_module.settings, "beginner_card_mode_enabled", True)
+    mock_client = _make_reviewer_mock_client()
+    llm = MockLLMProvider()
+
+    review_signal("sig-uuid", "proj-uuid", mock_client, llm, brief_date="2026-07-24")
+
+    mock_client._reviews_mock.insert.assert_called_once()
+    insert_payload = mock_client._reviews_mock.insert.call_args[0][0]
+    assert insert_payload["review_type"] == "project_card"
+
+
 # ─── 5.8 Reviewer: 상태 전이 pending → processing → completed 검증 ──────────────
 
 def test_reviewer_state_transition_to_completed():

@@ -304,3 +304,10 @@ def parse_and_validate_card(raw: str) -> None:
     for c in checklist:
         if not isinstance(c, str) or not c.strip():
             raise LLMProviderError(f"success_checklist 항목이 빈 문자열: {c!r}")
+    for field in (
+        "skill_label", "deliverable", "success_preview",
+        "prerequisites", "how_to_start", "example_prompt",
+    ):
+        value = parsed[field]
+        if not isinstance(value, str) or not value.strip():
+            raise LLMProviderError(f"{field}가 비어있거나 문자열이 아님: {value!r}")

@@ -77,3 +77,26 @@ def test_build_card_user_content_includes_topic_and_sources():
     out = build_card_user_content(ctx)
     assert "간단한 챗봇" in out
     assert "https://x" in out
+
+
+_STRING_BLOCKS = [
+    "skill_label", "deliverable", "success_preview",
+    "prerequisites", "how_to_start", "example_prompt",
+]
+
+
+@pytest.mark.parametrize("field", _STRING_BLOCKS)
+@pytest.mark.parametrize("bad", ["", "   "])
+def test_empty_string_block_raises(field, bad):
+    card = _valid_card()
+    card[field] = bad
+    with pytest.raises(LLMProviderError, match=field):
+        parse_and_validate_card(json.dumps(card))
+
+
+@pytest.mark.parametrize("field", _STRING_BLOCKS)
+def test_non_string_block_raises(field):
+    card = _valid_card()
+    card[field] = 123
+    with pytest.raises(LLMProviderError, match=field):
+        parse_and_validate_card(json.dumps(card))

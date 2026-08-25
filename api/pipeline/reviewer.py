@@ -13,6 +13,14 @@ from core.supabase import get_supabase
 _log = logging.getLogger(__name__)
 
 
+def resolve_review_type() -> str:
+    """카드 모드 토글에 따라 review_type 문자열을 반환.
+
+    pending INSERT(배치·온디맨드)와 완료 전이가 공유하는 단일 진실 공급원.
+    """
+    return "project_card" if settings.beginner_card_mode_enabled else "research"
+
+
 def _execute_review_pipeline(
     review_id: str,
     signal_id: str,
@@ -61,7 +69,7 @@ def _execute_review_pipeline(
         profile = profile_data[0] if profile_data else {}
 
         # 4) context_snapshot 저장
-        review_type_value = "project_card" if settings.beginner_card_mode_enabled else "research"
+        review_type_value = resolve_review_type()
         context_snapshot = {
             "schema_version": 1,
             "review_type": review_type_value,
@@ -172,7 +180,7 @@ def review_signal(
             "project_id": project_id,
             "signal_id": signal_id,
             "playbook_type": "ai_research",
-            "review_type": "research",
+            "review_type": resolve_review_type(),
             "status": "pending",
         }).execute()
         if not insert_result.data:
