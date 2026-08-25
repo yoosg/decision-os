@@ -226,3 +226,81 @@ def parse_and_validate_learnability(raw: str, expected_count: int) -> list[dict]
         if not isinstance(r["keep"], bool):
             raise LLMProviderError(f"keep 이 bool 아님: {r!r}")
     return results
+
+
+REQUIRED_CARD_BLOCKS = [
+    "skill_label", "difficulty", "estimated_minutes",
+    "deliverable", "success_preview", "prerequisites",
+    "how_to_start", "example_prompt",
+    "milestones", "troubleshooting", "success_checklist",
+]
+
+CARD_DIFFICULTIES = ["first_step", "basic", "challenge"]
+
+PROJECT_CARD_SYSTEM_PROMPT = """당신은 '개발 입문자'를 위한 학습 코치입니다. 주어진 기술/토픽으로 입문자가 직접 만들어보는(바이브코딩) '프로젝트 카드'를 JSON으로 작성하세요.
+전문용어를 피하고 쉬운 말로, 누구에게나 동일한 '표준' 내용으로 작성합니다(특정 개인 맞춤 아님).
+반드시 아래 11개 키를 모두 포함한 JSON 객체만 반환하세요(마크다운 코드블록 없이):
+{
+  "skill_label": "이 카드로 배우는 것 (한 줄, 예: '웹폼 만들고 데이터 저장하기')",
+  "difficulty": "first_step|basic|challenge 중 하나",
+  "estimated_minutes": 30,
+  "deliverable": "완성하면 손에 쥐어지는 결과물 (2-3문장)",
+  "success_preview": "이렇게 보이면 성공 — 완성 화면/상태 묘사 (1-2문장)",
+  "prerequisites": "시작 전 준비물/세팅. 없으면 '없어요, 바로 시작!'",
+  "how_to_start": "표준 진입점과 첫 단계 (2-4문장, 누구에게나 동일)",
+  "example_prompt": "AI 코딩 도구에 복붙할 수 있는 표준 예시 프롬프트 (구체적으로)",
+  "milestones": [{"action": "무엇을 함", "done_signal": "끝나면 이렇게 보임"}],
+  "troubleshooting": [{"symptom": "자주 나는 문제/에러", "fix": "복붙하거나 시도할 복구 방법"}],
+  "success_checklist": ["다 됐는지 확인할 체크 항목"]
+}
+규칙:
+- milestones는 큰 단계 3~5개만(잘게 쪼개지 말 것 — 지시서가 아니라 지도).
+- troubleshooting 최소 1개, success_checklist 최소 1개.
+- estimated_minutes는 양의 정수(분).
+- 모든 문구는 한국어, 입문자가 겁먹지 않는 친근한 말투."""
+
+_CARD_MILESTONE_KEYS = {"action", "done_signal"}
+_CARD_TROUBLE_KEYS = {"symptom", "fix"}
+
+
+def build_card_user_content(context: ReviewContext) -> str:
+    return (
+        f"기술/토픽: {context.technology_name}\n\n"
+        f"출처:\n{format_sources(context.signal_sources)}\n\n"
+        f"위 토픽으로 '개발 입문자'가 직접 만들어볼 수 있는 프로젝트 카드를 JSON으로 작성하세요."
+    )
+
+
+def parse_and_validate_card(raw: str) -> None:
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise LLMProviderError(f"LLM 응답이 유효한 JSON이 아님: {e}") from e
+    if not isinstance(parsed, dict):
+        raise LLMProviderError(f"LLM 응답이 JSON 객체가 아님: {type(parsed).__name__}")
+    missing = [k for k in REQUIRED_CARD_BLOCKS if k not in parsed]
+    if missing:
+        raise LLMProviderError(f"프로젝트 카드에 필수 블록 누락: {missing}")
+    if parsed["difficulty"] not in CARD_DIFFICULTIES:
+        raise LLMProviderError(f"difficulty 허용 목록 밖: {parsed['difficulty']}")
+    minutes = parsed["estimated_minutes"]
+    if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes <= 0:
+        raise LLMProviderError(f"estimated_minutes가 양의 정수가 아님: {minutes!r}")
+    milestones = parsed["milestones"]
+    if not isinstance(milestones, list) or not (3 <= len(milestones) <= 5):
+        raise LLMProviderError(f"milestones는 3~5개여야 함: {milestones!r}")
+    for m in milestones:
+        if not isinstance(m, dict) or not _CARD_MILESTONE_KEYS.issubset(m.keys()):
+            raise LLMProviderError(f"milestone 항목 키 누락: {m!r}")
+    trouble = parsed["troubleshooting"]
+    if not isinstance(trouble, list) or len(trouble) < 1:
+        raise LLMProviderError(f"troubleshooting은 최소 1개여야 함: {trouble!r}")
+    for t in trouble:
+        if not isinstance(t, dict) or not _CARD_TROUBLE_KEYS.issubset(t.keys()):
+            raise LLMProviderError(f"troubleshooting 항목 키 누락: {t!r}")
+    checklist = parsed["success_checklist"]
+    if not isinstance(checklist, list) or len(checklist) < 1:
+        raise LLMProviderError(f"success_checklist는 최소 1개여야 함: {checklist!r}")
+    for c in checklist:
+        if not isinstance(c, str) or not c.strip():
+            raise LLMProviderError(f"success_checklist 항목이 빈 문자열: {c!r}")

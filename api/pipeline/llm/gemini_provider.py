@@ -75,6 +75,14 @@ class GeminiProvider(LLMProvider):
         prompts.parse_and_validate_review(raw)
         return LLMResponse(content=raw, model=self._model)
 
+    def generate_card(self, context: ReviewContext) -> LLMResponse:
+        raw = self._generate(
+            prompts.PROJECT_CARD_SYSTEM_PROMPT,
+            prompts.build_card_user_content(context), as_json=True,
+        )
+        prompts.parse_and_validate_card(raw)
+        return LLMResponse(content=raw, model=self._model)
+
     def build_signal_title_summary(self, technology_name: str, signal_sources: list[dict]) -> LLMResponse:
         raw = self._generate(
             prompts.SIGNAL_BUILD_PROMPT,

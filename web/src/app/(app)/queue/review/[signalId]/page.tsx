@@ -11,6 +11,7 @@ export type InitialReview = {
   signalTitle: string;
   payload?: ReviewPayload;
   barGateOverride?: string | null;
+  reviewType?: string | null;
 } | null;
 
 export default async function ReviewPage({
@@ -44,6 +45,7 @@ export default async function ReviewPage({
       signalTitle,
       payload,
       barGateOverride: reviewRow.bar_gate_override as string | null | undefined,
+      reviewType: (reviewRow.result?.review_type as string | null | undefined) ?? null,
     };
   }
 

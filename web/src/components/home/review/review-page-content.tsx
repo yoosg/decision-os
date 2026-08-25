@@ -5,11 +5,13 @@ import { createClient } from "@/lib/supabase";
 import { trackEngagement } from "@/lib/engagement";
 import { ResearchReviewContent } from "./research-review-content";
 import type { ReviewPayload } from "./research-review-content";
+import { ProjectCardContent } from "./project-card-content";
+import type { ProjectCardPayload } from "./project-card-blocks";
 import { ReviewGeneratingState } from "./review-generating-state";
 import { ReviewFailedState } from "./review-failed-state";
 
 type ReviewUIState =
-  | { type: "completed"; reviewId: string; payload: ReviewPayload; signalTitle: string; barGateOverride?: string | null }
+  | { type: "completed"; reviewId: string; payload: ReviewPayload | ProjectCardPayload; signalTitle: string; barGateOverride?: string | null; reviewType?: string | null }
   | { type: "generating" }
   | { type: "failed" };
 
@@ -19,6 +21,7 @@ type InitialReview = {
   signalTitle: string;
   payload?: ReviewPayload;
   barGateOverride?: string | null;
+  reviewType?: string | null;
 } | null;
 
 interface ReviewPageContentProps {
@@ -36,6 +39,7 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
         payload: initialReview.payload,
         signalTitle: initialReview.signalTitle,
         barGateOverride: initialReview.barGateOverride,
+        reviewType: initialReview.reviewType,
       };
     }
     return { type: "generating" };
@@ -81,14 +85,15 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
               .select("result, bar_gate_override")
               .eq("id", reviewId)
               .single();
-            const fetched = data?.result?.payload as ReviewPayload | undefined;
+            const fetched = data?.result?.payload as ReviewPayload | ProjectCardPayload | undefined;
             if (fetched) {
               setUIState({
                 type: "completed",
-                reviewId: reviewIdRef.current ?? reviewId, // P8: ref null 대비 closure 변수 fallback
+                reviewId: reviewIdRef.current ?? reviewId,
                 payload: fetched,
                 signalTitle,
                 barGateOverride: data?.bar_gate_override as string | null,
+                reviewType: (data?.result?.review_type as string | null | undefined) ?? null,
               });
             } else {
               setUIState({ type: "failed" });
@@ -178,11 +183,20 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
   };
 
   if (uiState.type === "completed") {
+    if (uiState.reviewType === "project_card") {
+      return (
+        <ProjectCardContent
+          signalId={signalId}
+          signalTitle={uiState.signalTitle}
+          payload={uiState.payload as ProjectCardPayload}
+        />
+      );
+    }
     return (
       <ResearchReviewContent
         signalId={signalId}
         signalTitle={uiState.signalTitle}
-        payload={uiState.payload}
+        payload={uiState.payload as ReviewPayload}
         reviewId={uiState.reviewId}
         barGateOverride={uiState.barGateOverride}
       />
