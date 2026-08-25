@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReviewSections, type ReviewPayload } from "@/components/home/review/review-sections";
-import { type ProjectCardPayload } from "@/components/home/review/project-card-blocks";
+import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "@/components/home/review/project-card-blocks";
 import { OUTCOME_OPTIONS, type OutcomeStatus } from "@/components/home/outcome/outcome-options";
 import { ArchivedBanner } from "./archived-banner";
 import { dotVisual, DECISION_TYPE_LABEL, type DecisionChoice } from "./memory-timeline-item";
@@ -130,7 +130,14 @@ export function ChainDetailContent({ data }: Props) {
       {/* Review 노드 */}
       {review && (
         <ChainNode color="var(--text-secondary)" glyph={null} typeLabel="REVIEW">
-          <ReviewSections payload={review.payload as ReviewPayload} />
+          {review.reviewType === "project_card" ? (
+            <>
+              <ProjectCardMeta payload={review.payload as ProjectCardPayload} />
+              <ProjectCardBlocks payload={review.payload as ProjectCardPayload} />
+            </>
+          ) : (
+            <ReviewSections payload={review.payload as ReviewPayload} />
+          )}
         </ChainNode>
       )}
 
