@@ -175,6 +175,36 @@ def test_non_card_review_returns_404(monkeypatch):
     assert res.status_code == 404
 
 
+def test_put_updates_existing_progress(monkeypatch):
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+    written = [{"id": TEST_PROGRESS_ID, "milestones_checked": [1],
+               "checklist_checked": [0], "result": "stuck"}]
+    # progress_first 비어있지 않으므로 UPDATE 브랜치 진입
+    mock_client = _base_mock(
+        review_row=_CARD_REVIEW,
+        progress_first=[{"id": TEST_PROGRESS_ID}],
+        progress_write=written,
+    )
+    with patch("routers.project_cards.get_supabase", return_value=mock_client):
+        from main import app
+        with TestClient(app) as client:
+            res = client.put(
+                f"/api/v1/project-cards/{TEST_REVIEW_ID}/progress",
+                headers={"Authorization": f"Bearer {_make_token()}"},
+                json={"milestones_checked": [1], "checklist_checked": [0], "result": "stuck"},
+            )
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["milestones_checked"] == [1]
+    assert data["checklist_checked"] == [0]
+    assert data["result"] == "stuck"
+    # update()가 호출된 table mock을 확인 (insert가 아님)
+    # _base_mock에서 project_card_progress table의 update().eq().execute() 체인이 wire됨
+    table_calls = [c.args[0] for c in mock_client.table.call_args_list]
+    assert "project_card_progress" in table_calls
+
+
 def test_missing_auth_returns_401():
     mock_client = _base_mock(review_row=_CARD_REVIEW, progress_first=[])
     with patch("routers.project_cards.get_supabase", return_value=mock_client):

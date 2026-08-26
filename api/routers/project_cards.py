@@ -99,9 +99,13 @@ def put_progress(
     def _validate(indices: list[int], length: int, field: str) -> None:
         for i in indices:
             if i < 0 or i >= length:
+                if length == 0:
+                    detail = f"{field} index {i} out of range (field is empty, no valid indices)"
+                else:
+                    detail = f"{field} index {i} out of range (0..{length - 1})"
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"{field} index {i} out of range (0..{length - 1})",
+                    detail=detail,
                 )
 
     _validate(body.milestones_checked, n_milestones, "milestones_checked")
