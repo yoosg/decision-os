@@ -33,7 +33,10 @@ export function useCardProgress(reviewId: string | null): CardProgress {
   const latest = useRef({ milestonesChecked, checklistChecked, result });
   latest.current = { milestonesChecked, checklistChecked, result };
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const hydratedRef = useRef(false);
+  // 유저가 최초로 상호작용했는지 — 로드가 사용자 편집을 덮어쓰지 않도록 방지
+  const dirtyRef = useRef(false);
+  // 언마운트 후 setState 호출을 방지
+  const mountedRef = useRef(true);
 
   // 마운트 시 저장상태 로드(있으면). 토큰/ reviewId 없으면 로컬 전용.
   useEffect(() => {
@@ -50,13 +53,13 @@ export function useCardProgress(reviewId: string | null): CardProgress {
         const json = await res.json();
         const d = json?.data;
         if (!d || cancelled) return;
+        // 유저가 이미 상호작용했으면 서버 상태로 덮어쓰지 않음
+        if (dirtyRef.current) return;
         setMilestones(new Set<number>(d.milestones_checked ?? []));
         setChecklist(new Set<number>(d.checklist_checked ?? []));
         setResultState((d.result as CardResult | null) ?? null);
       } catch {
         // 로드 실패 — 로컬 전용으로 진행
-      } finally {
-        hydratedRef.current = true;
       }
     })();
     return () => { cancelled = true; };
@@ -78,16 +81,20 @@ export function useCardProgress(reviewId: string | null): CardProgress {
             result: latest.current.result,
           }),
         });
-        setSaveError(!res.ok);
+        if (mountedRef.current) setSaveError(!res.ok);
       } catch {
-        setSaveError(true);
+        if (mountedRef.current) setSaveError(true);
       }
     }, DEBOUNCE_MS);
   }, [reviewId]);
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(() => () => {
+    mountedRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   const toggleMilestone = useCallback((i: number) => {
+    dirtyRef.current = true;
     setMilestones((prev) => {
       const next = new Set(prev);
       next.has(i) ? next.delete(i) : next.add(i);
@@ -97,6 +104,7 @@ export function useCardProgress(reviewId: string | null): CardProgress {
   }, [scheduleSave]);
 
   const toggleChecklist = useCallback((i: number) => {
+    dirtyRef.current = true;
     setChecklist((prev) => {
       const next = new Set(prev);
       next.has(i) ? next.delete(i) : next.add(i);
@@ -106,6 +114,7 @@ export function useCardProgress(reviewId: string | null): CardProgress {
   }, [scheduleSave]);
 
   const setResult = useCallback((r: CardResult | null) => {
+    dirtyRef.current = true;
     setResultState(r);
     scheduleSave();
   }, [scheduleSave]);
