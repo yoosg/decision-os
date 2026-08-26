@@ -3,20 +3,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "./project-card-blocks";
+import { useCardProgress, type CardResult } from "./use-card-progress";
 
 interface Props {
   signalId: string;
   signalTitle: string;
   payload: ProjectCardPayload;
+  reviewId?: string;
 }
 
-const OUTCOMES = [
+const OUTCOMES: { key: CardResult; label: string }[] = [
   { key: "success", label: "🎉 성공" },
   { key: "stuck", label: "😵 막힘" },
-  { key: "give_up", label: "🏳️ 포기" },
+  { key: "dropped", label: "🏳️ 포기" },
 ];
 
-export function ProjectCardContent({ signalTitle, payload }: Props) {
+export function ProjectCardContent({ signalTitle, payload, reviewId }: Props) {
+  const progress = useCardProgress(reviewId ?? null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,8 +28,14 @@ export function ProjectCardContent({ signalTitle, payload }: Props) {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // 저장 실패 시 토스트
+  useEffect(() => {
+    if (progress.saveError) setToast("저장 실패, 재시도 중");
+  }, [progress.saveError]);
+
   return (
     <div className="screen-container" style={{ paddingTop: "24px", paddingBottom: "96px" }}>
+      {/* 홈으로 백링크 — 기존 그대로 */}
       <Link
         href="/home"
         className="text-label"
@@ -38,35 +47,38 @@ export function ProjectCardContent({ signalTitle, payload }: Props) {
         홈으로
       </Link>
 
-      {/* 헤더 */}
       <h1 className="text-screen-title" style={{ marginBottom: "12px" }}>{signalTitle}</h1>
       <ProjectCardMeta payload={payload} />
 
-      <ProjectCardBlocks payload={payload} />
+      <ProjectCardBlocks payload={payload} progress={progress} />
 
-      {/* ⑦ 결과 남기기 (인라인, UI만 — 저장 API는 다음 슬라이스) */}
+      {/* ⑦ 결과 남기기 — 단일선택, 재탭 시 해제 */}
       <section style={{ marginTop: "8px" }}>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>결과 남기기</h2>
         <div style={{ display: "flex", gap: "8px" }}>
-          {OUTCOMES.map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => setToast("결과 기록은 곧 지원돼요")}
-              style={{
-                flex: 1,
-                minHeight: "44px",
-                borderRadius: "9999px",
-                border: "1px solid var(--border-subtle, #E5E5E5)",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: 500,
-              }}
-            >
-              {o.label}
-            </button>
-          ))}
+          {OUTCOMES.map((o) => {
+            const active = progress.result === o.key;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => progress.setResult(active ? null : o.key)}
+                style={{
+                  flex: 1,
+                  minHeight: "44px",
+                  borderRadius: "9999px",
+                  border: active ? "1px solid var(--text-primary, #111)" : "1px solid var(--border-subtle, #E5E5E5)",
+                  background: active ? "var(--surface-card, #F2F2F2)" : "transparent",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       </section>
 

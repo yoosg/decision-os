@@ -189,6 +189,7 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
           signalId={signalId}
           signalTitle={uiState.signalTitle}
           payload={uiState.payload as ProjectCardPayload}
+          reviewId={uiState.reviewId}
         />
       );
     }
