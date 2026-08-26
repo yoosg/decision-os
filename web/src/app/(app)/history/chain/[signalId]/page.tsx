@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ChainDetailContent, type ChainDetailData } from "@/components/history/chain-detail-content";
 import type { ReviewPayload } from "@/components/home/review/review-sections";
+import type { ProjectCardPayload } from "@/components/home/review/project-card-blocks";
 import type { OutcomeStatus } from "@/components/home/outcome/outcome-options";
 import type { DecisionChoice } from "@/components/history/memory-timeline-item";
 
@@ -36,7 +37,7 @@ export default async function ChainDetailPage({
     .maybeSingle();
   const reviewRow = reviewData as unknown as {
     id: string;
-    result: { payload?: ReviewPayload } | null;
+    result: { review_type?: string | null; payload?: ReviewPayload | ProjectCardPayload } | null;
   } | null;
 
   // 3. Decision (review 있을 때만, 최신 1건, choice 필터 없음)
@@ -73,7 +74,8 @@ export default async function ChainDetailPage({
     outcomeRow = data as unknown as OutcomeRow | null;
   }
 
-  const payload = reviewRow?.result?.payload as ReviewPayload | undefined;
+  const payload = reviewRow?.result?.payload as ReviewPayload | ProjectCardPayload | undefined;
+  const reviewType = reviewRow?.result?.review_type ?? null;
 
   const data: ChainDetailData = {
     signal: {
@@ -81,7 +83,7 @@ export default async function ChainDetailPage({
       title: signal.title as string,
       status: signal.status as string,
     },
-    review: payload ? { payload } : null,
+    review: payload ? { reviewType, payload } : null,
     decision: decisionRow
       ? { choice: decisionRow.choice as DecisionChoice, createdAt: decisionRow.created_at }
       : null,
