@@ -19,6 +19,7 @@ from routers.health import router as health_router
 from routers.learning_paths import router as learning_paths_router
 from routers.onboarding import router as onboarding_router
 from routers.outcomes import router as outcomes_router
+from routers.project_cards import router as project_cards_router
 from routers.reviews import router as reviews_router
 from routers.users import router as users_router
 
@@ -133,4 +134,5 @@ app.include_router(decisions_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(learning_paths_router, prefix="/api/v1")
 app.include_router(outcomes_router, prefix="/api/v1")
+app.include_router(project_cards_router, prefix="/api/v1")
 app.include_router(engagement_router, prefix="/api/v1")

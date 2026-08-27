@@ -31,8 +31,12 @@ test("헤더에 제목·난이도 뱃지·시간·스킬라벨이 나온다", ()
   expect(screen.getByText(/웹폼 만들고 데이터 저장하기/)).toBeTruthy();
 });
 
-test("⑦ 결과 버튼 클릭 시 '곧 지원' 토스트가 뜬다", () => {
+test("⑦ 결과 버튼: 단일 선택(클릭 시 활성) + 재탭 해제", () => {
+  // reviewId 미전달 → 로컬 전용(저장 스킵). 결과는 로컬 상태로만 토글된다.
   render(<ProjectCardContent signalId="s1" signalTitle="t" payload={payload} />);
-  fireEvent.click(screen.getByRole("button", { name: /성공/ }));
-  expect(screen.getByText(/곧 지원/)).toBeTruthy();
+  const successBtn = screen.getByRole("button", { name: /성공/ });
+  fireEvent.click(successBtn);
+  expect(successBtn.getAttribute("aria-pressed")).toBe("true"); // 선택됨
+  fireEvent.click(successBtn);
+  expect(successBtn.getAttribute("aria-pressed")).toBe("false"); // 재탭 해제
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { CardProgress } from "./use-card-progress";
 
 export interface ProjectCardPayload {
   skill_label: string;
@@ -82,8 +83,15 @@ function CopyPromptButton({ text }: { text: string }) {
   );
 }
 
-function MilestoneList({ milestones }: { milestones: ProjectCardPayload["milestones"] }) {
-  const { checked, toggle } = useCheckedSet();
+function MilestoneList({
+  milestones,
+  checked,
+  onToggle,
+}: {
+  milestones: ProjectCardPayload["milestones"];
+  checked: Set<number>;
+  onToggle: (i: number) => void;
+}) {
   return (
     <div>
       <p className="text-label" style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>
@@ -96,7 +104,7 @@ function MilestoneList({ milestones }: { milestones: ProjectCardPayload["milesto
               <input
                 type="checkbox"
                 checked={checked.has(i)}
-                onChange={() => toggle(i)}
+                onChange={() => onToggle(i)}
                 style={{ marginTop: "3px" }}
               />
               <span>
@@ -113,8 +121,15 @@ function MilestoneList({ milestones }: { milestones: ProjectCardPayload["milesto
   );
 }
 
-function SuccessChecklist({ items }: { items: string[] }) {
-  const { checked, toggle } = useCheckedSet();
+function SuccessChecklist({
+  items,
+  checked,
+  onToggle,
+}: {
+  items: string[];
+  checked: Set<number>;
+  onToggle: (i: number) => void;
+}) {
   return (
     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
       {items.map((it, i) => (
@@ -123,7 +138,7 @@ function SuccessChecklist({ items }: { items: string[] }) {
             <input
               type="checkbox"
               checked={checked.has(i)}
-              onChange={() => toggle(i)}
+              onChange={() => onToggle(i)}
               style={{ marginTop: "3px" }}
             />
             <span className="text-body">{it}</span>
@@ -134,7 +149,22 @@ function SuccessChecklist({ items }: { items: string[] }) {
   );
 }
 
-export function ProjectCardBlocks({ payload }: { payload: ProjectCardPayload }) {
+export function ProjectCardBlocks({
+  payload,
+  progress,
+}: {
+  payload: ProjectCardPayload;
+  progress?: CardProgress;
+}) {
+  // 로컬 폴백(progress 미제공 시). 훅은 항상 무조건 호출.
+  const localMilestones = useCheckedSet();
+  const localChecklist = useCheckedSet();
+
+  const milestoneChecked = progress ? progress.milestonesChecked : localMilestones.checked;
+  const milestoneToggle = progress ? progress.toggleMilestone : localMilestones.toggle;
+  const checklistChecked = progress ? progress.checklistChecked : localChecklist.checked;
+  const checklistToggle = progress ? progress.toggleChecklist : localChecklist.toggle;
+
   return (
     <>
       {/* ① 완성하면 이게 나와 */}
@@ -175,7 +205,11 @@ export function ProjectCardBlocks({ payload }: { payload: ProjectCardPayload }) 
       {/* ④ 진행 과정 */}
       <section style={{ marginBottom: "24px" }}>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>🗺️ 진행 과정</h2>
-        <MilestoneList milestones={payload.milestones ?? []} />
+        <MilestoneList
+          milestones={payload.milestones ?? []}
+          checked={milestoneChecked}
+          onToggle={milestoneToggle}
+        />
       </section>
 
       {/* ⑤ 막히면 이렇게 */}
@@ -192,7 +226,11 @@ export function ProjectCardBlocks({ payload }: { payload: ProjectCardPayload }) 
       {/* ⑥ 다 됐는지 확인 */}
       <section style={{ marginBottom: "24px" }}>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>✅ 다 됐는지 확인</h2>
-        <SuccessChecklist items={payload.success_checklist ?? []} />
+        <SuccessChecklist
+          items={payload.success_checklist ?? []}
+          checked={checklistChecked}
+          onToggle={checklistToggle}
+        />
       </section>
     </>
   );
