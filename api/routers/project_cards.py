@@ -121,31 +121,17 @@ def put_progress(
         "result": body.result,
     }
 
-    existing = (
+    # UNIQUE(review_id, user_id) 기준 단일 upsert — select→insert/update의 TOCTOU 레이스 제거
+    # (동시 PUT이 둘 다 INSERT 시도 → UNIQUE 위반 500 나던 문제).
+    written = (
         client.table("project_card_progress")
-        .select("id")
-        .eq("review_id", review_id)
-        .eq("user_id", user_id)
-        .limit(1)
+        .upsert(
+            {**values, "review_id": review_id, "user_id": user_id},
+            on_conflict="review_id,user_id",
+        )
         .execute()
         .data
     )
-
-    if existing:
-        written = (
-            client.table("project_card_progress")
-            .update(values)
-            .eq("id", existing[0]["id"])
-            .execute()
-            .data
-        )
-    else:
-        written = (
-            client.table("project_card_progress")
-            .insert({**values, "review_id": review_id, "user_id": user_id})
-            .execute()
-            .data
-        )
 
     row = written[0] if written else {**values}
     return APIResponse(data=_row_to_data(row))

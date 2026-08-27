@@ -30,7 +30,7 @@ export function ProjectCardContent({ signalTitle, payload, reviewId }: Props) {
 
   // 저장 실패 시 토스트
   useEffect(() => {
-    if (progress.saveError) setToast("저장 실패, 재시도 중");
+    if (progress.saveError) setToast("저장에 실패했어요 — 다시 체크하면 재시도돼요");
   }, [progress.saveError]);
 
   return (

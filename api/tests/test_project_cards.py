@@ -51,6 +51,7 @@ def _base_mock(
             c.select.return_value = select_ch
             c.insert.return_value = write_ch
             c.update.return_value = write_ch
+            c.upsert.return_value = write_ch
         return c
 
     mock_client.table.side_effect = table_side_effect
@@ -175,12 +176,12 @@ def test_non_card_review_returns_404(monkeypatch):
     assert res.status_code == 404
 
 
-def test_put_updates_existing_progress(monkeypatch):
+def test_put_upsert_existing_progress(monkeypatch):
     import middleware.auth as auth_module
     monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
     written = [{"id": TEST_PROGRESS_ID, "milestones_checked": [1],
                "checklist_checked": [0], "result": "stuck"}]
-    # progress_first 비어있지 않으므로 UPDATE 브랜치 진입
+    # 기존 행이 있어도 단일 upsert 경로로 갱신된다(멱등, 레이스 없음).
     mock_client = _base_mock(
         review_row=_CARD_REVIEW,
         progress_first=[{"id": TEST_PROGRESS_ID}],
@@ -199,8 +200,7 @@ def test_put_updates_existing_progress(monkeypatch):
     assert data["milestones_checked"] == [1]
     assert data["checklist_checked"] == [0]
     assert data["result"] == "stuck"
-    # update()가 호출된 table mock을 확인 (insert가 아님)
-    # _base_mock에서 project_card_progress table의 update().eq().execute() 체인이 wire됨
+    # project_card_progress 테이블에 대한 upsert 경로가 호출됐는지 확인
     table_calls = [c.args[0] for c in mock_client.table.call_args_list]
     assert "project_card_progress" in table_calls
 

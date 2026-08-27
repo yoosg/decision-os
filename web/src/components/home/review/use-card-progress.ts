@@ -38,8 +38,15 @@ export function useCardProgress(reviewId: string | null): CardProgress {
   // 언마운트 후 setState 호출을 방지
   const mountedRef = useRef(true);
 
-  // 마운트 시 저장상태 로드(있으면). 토큰/ reviewId 없으면 로컬 전용.
+  // 마운트/ reviewId 변경 시 저장상태 로드(있으면). 토큰/ reviewId 없으면 로컬 전용.
+  // reviewId가 바뀌면 이전 카드의 상태·dirty 플래그·대기 중 저장 타이머를 먼저 초기화한다
+  // (컴포넌트가 언마운트 없이 다른 카드로 재사용될 때 이전 카드 잔상·오염·오배송 방지).
   useEffect(() => {
+    dirtyRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setMilestones(new Set());
+    setChecklist(new Set());
+    setResultState(null);
     if (!reviewId) return;
     let cancelled = false;
     (async () => {
@@ -53,7 +60,7 @@ export function useCardProgress(reviewId: string | null): CardProgress {
         const json = await res.json();
         const d = json?.data;
         if (!d || cancelled) return;
-        // 유저가 이미 상호작용했으면 서버 상태로 덮어쓰지 않음
+        // 로드 중 유저가 이미 상호작용했으면 서버 상태로 덮어쓰지 않음
         if (dirtyRef.current) return;
         setMilestones(new Set<number>(d.milestones_checked ?? []));
         setChecklist(new Set<number>(d.checklist_checked ?? []));
@@ -62,7 +69,11 @@ export function useCardProgress(reviewId: string | null): CardProgress {
         // 로드 실패 — 로컬 전용으로 진행
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // reviewId 변경/언마운트 시 이전 카드로 향하던 대기 저장 타이머 취소
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [reviewId]);
 
   const scheduleSave = useCallback(() => {
