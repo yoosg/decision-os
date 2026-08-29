@@ -23,22 +23,28 @@ export const CARD_DIFFICULTY_LABEL: Record<ProjectCardPayload["difficulty"], str
   challenge: "도전",
 };
 
+export const CARD_DIFFICULTY_DOTS: Record<ProjectCardPayload["difficulty"], string> = {
+  first_step: "●○○",
+  basic: "●●○",
+  challenge: "●●●",
+};
+
 export function ProjectCardMeta({ payload }: { payload: ProjectCardPayload }) {
   return (
-    <>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-        <span
-          className="text-label"
-          style={{ background: "var(--surface-card, #F2F2F2)", borderRadius: "9999px", padding: "4px 12px" }}
-        >
-          🏷️ {CARD_DIFFICULTY_LABEL[payload.difficulty]}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "20px" }}>
+      <span
+        className="text-label"
+        style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--surface-card, #F2F2F2)", borderRadius: "9999px", padding: "4px 12px" }}
+      >
+        {CARD_DIFFICULTY_LABEL[payload.difficulty]}
+        <span aria-hidden="true" style={{ letterSpacing: "1px", fontSize: "11px" }}>
+          {CARD_DIFFICULTY_DOTS[payload.difficulty]}
         </span>
-        <span className="text-label" style={{ color: "var(--text-secondary)" }}>⏱ {payload.estimated_minutes}분</span>
-      </div>
-      <p className="text-body" style={{ color: "var(--text-secondary)", marginBottom: "24px" }}>
-        🎓 {payload.skill_label}
-      </p>
-    </>
+      </span>
+      <span className="text-label" style={{ color: "var(--text-secondary)" }}>
+        ⏱ {payload.estimated_minutes}분 · 🎓 {payload.skill_label}
+      </span>
+    </div>
   );
 }
 
