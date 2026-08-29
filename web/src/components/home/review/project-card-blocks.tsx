@@ -83,6 +83,41 @@ function CopyPromptButton({ text }: { text: string }) {
   );
 }
 
+function CheckableList<T>({
+  items,
+  checked,
+  onToggle,
+  renderLabel,
+  header,
+}: {
+  items: T[];
+  checked: Set<number>;
+  onToggle: (i: number) => void;
+  renderLabel: (item: T) => React.ReactNode;
+  header?: React.ReactNode;
+}) {
+  return (
+    <div>
+      {header}
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ marginBottom: "12px" }}>
+            <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={checked.has(i)}
+                onChange={() => onToggle(i)}
+                style={{ marginTop: "3px" }}
+              />
+              <span>{renderLabel(item)}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function MilestoneList({
   milestones,
   checked,
@@ -93,31 +128,24 @@ function MilestoneList({
   onToggle: (i: number) => void;
 }) {
   return (
-    <div>
-      <p className="text-label" style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>
-        {checked.size}/{milestones.length}
-      </p>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {milestones.map((m, i) => (
-          <li key={i} style={{ marginBottom: "12px" }}>
-            <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={checked.has(i)}
-                onChange={() => onToggle(i)}
-                style={{ marginTop: "3px" }}
-              />
-              <span>
-                <span className="text-body" style={{ display: "block" }}>{m.action}</span>
-                <span className="text-body" style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                  끝나면: {m.done_signal}
-                </span>
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <CheckableList
+      items={milestones}
+      checked={checked}
+      onToggle={onToggle}
+      header={
+        <p className="text-label" style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>
+          {checked.size}/{milestones.length}
+        </p>
+      }
+      renderLabel={(m) => (
+        <>
+          <span className="text-body" style={{ display: "block" }}>{m.action}</span>
+          <span className="text-body" style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
+            끝나면: {m.done_signal}
+          </span>
+        </>
+      )}
+    />
   );
 }
 
@@ -131,21 +159,12 @@ function SuccessChecklist({
   onToggle: (i: number) => void;
 }) {
   return (
-    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-      {items.map((it, i) => (
-        <li key={i} style={{ marginBottom: "8px" }}>
-          <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={checked.has(i)}
-              onChange={() => onToggle(i)}
-              style={{ marginTop: "3px" }}
-            />
-            <span className="text-body">{it}</span>
-          </label>
-        </li>
-      ))}
-    </ul>
+    <CheckableList
+      items={items}
+      checked={checked}
+      onToggle={onToggle}
+      renderLabel={(it) => <span className="text-body">{it}</span>}
+    />
   );
 }
 
