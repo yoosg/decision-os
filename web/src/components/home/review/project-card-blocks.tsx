@@ -3,6 +3,14 @@
 import { useState } from "react";
 import type { CardProgress } from "./use-card-progress";
 
+const INTERACTIVE_BLOCK_STYLE: React.CSSProperties = {
+  background: "var(--surface-card, #F7F7F7)",
+  borderLeft: "3px solid var(--accent-primary, #0D0D0D)",
+  borderRadius: "0 12px 12px 0",
+  padding: "14px",
+  marginBottom: "20px",
+};
+
 export interface ProjectCardPayload {
   skill_label: string;
   difficulty: "first_step" | "basic" | "challenge";
@@ -148,7 +156,7 @@ function MilestoneList({
         <>
           <span className="text-body" style={{ display: "block" }}>{m.action}</span>
           <span className="text-body" style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-            끝나면: {m.done_signal}
+            끝나면 · {m.done_signal}
           </span>
         </>
       )}
@@ -235,8 +243,10 @@ export function ProjectCardBlocks({
       </section>
 
       {/* ④ 진행 과정 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>🗺️ 진행 과정</h2>
+      <section style={INTERACTIVE_BLOCK_STYLE}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <h2 className="text-section-title" style={{ margin: 0 }}>🗺️ 진행 과정</h2>
+        </div>
         <MilestoneList
           milestones={payload.milestones ?? []}
           checked={milestoneChecked}
@@ -256,8 +266,8 @@ export function ProjectCardBlocks({
       </section>
 
       {/* ⑥ 다 됐는지 확인 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>✅ 다 됐는지 확인</h2>
+      <section style={INTERACTIVE_BLOCK_STYLE}>
+        <h2 className="text-section-title" style={{ marginBottom: "10px" }}>✅ 다 됐는지 확인</h2>
         <SuccessChecklist
           items={payload.success_checklist ?? []}
           checked={checklistChecked}
