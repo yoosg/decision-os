@@ -77,14 +77,15 @@ function CopyPromptButton({ text }: { text: string }) {
       onClick={handleCopy}
       className="text-label"
       style={{
-        border: "1px solid var(--border-subtle, #E5E5E5)",
+        border: copied ? "1px solid var(--accent-primary, #0D0D0D)" : "1px solid var(--border-subtle, #E5E5E5)",
         borderRadius: "9999px",
-        background: "transparent",
+        background: copied ? "var(--accent-primary, #0D0D0D)" : "transparent",
+        color: copied ? "#fff" : "inherit",
         padding: "4px 12px",
         cursor: "pointer",
       }}
     >
-      {copied ? "복사됨!" : "📋 복사"}
+      {copied ? "✓ 복사됨" : "📋 복사"}
     </button>
   );
 }
