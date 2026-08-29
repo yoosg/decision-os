@@ -3,10 +3,9 @@
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import { ThreeDotLoading } from "@/components/home/three-dot-loading";
 import { LearningPathCard, type LearningPathResource } from "@/components/home/learning-path/learning-path-card";
-
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
 
 type UIState =
   | { type: "generating" }
@@ -43,16 +42,9 @@ export default function LearningPathPage({ params }: { params: Promise<{ signalI
     };
   }, [signalId]);
 
-  const getToken = async () => {
-    const {
-      data: { session },
-    } = await createClient().auth.getSession();
-    return session?.access_token ?? null;
-  };
-
   const triggerAPI = async (decisionId: string): Promise<string | null> => {
-    const token = await getToken();
-    const res = await fetch(`${FASTAPI_URL}/api/v1/learning-paths/trigger`, {
+    const token = await getAccessToken();
+    const res = await fetch(`${API_BASE_URL}/api/v1/learning-paths/trigger`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import { trackEngagement } from "@/lib/engagement";
 import { ResearchReviewContent } from "./research-review-content";
 import type { ReviewPayload } from "./research-review-content";
@@ -111,10 +112,8 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
   };
 
   const triggerAPI = async (): Promise<string | null> => {
-    const { data: { session } } = await createClient().auth.getSession();
-    const token = session?.access_token;
-    const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-    const res = await fetch(`${fastapiUrl}/api/v1/reviews/trigger`, {
+    const token = await getAccessToken();
+    const res = await fetch(`${API_BASE_URL}/api/v1/reviews/trigger`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

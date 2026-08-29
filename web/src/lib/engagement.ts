@@ -11,7 +11,7 @@
  * impression 타입을 허용 목록에 둔 건 향후 클라 뷰포트 계측 확장 여지를 위한 것으로, 지금 웹은
  * open·read_through만 전송한다(D2/D3).
  */
-import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 
 type EngagementEventType = "impression" | "open" | "read_through";
 
@@ -27,15 +27,10 @@ export function trackEngagement(events: EngagementEvent[]): void {
   // void + 즉시실행 async: 호출부는 반환을 기다리지 않는다(fire-and-forget).
   void (async () => {
     try {
-      const {
-        data: { session },
-      } = await createClient().auth.getSession();
-      const token = session?.access_token;
+      const token = await getAccessToken();
       if (!token) return; // 비로그인/세션만료 → 조용히 스킵(계측은 부수효과)
 
-      const fastapiUrl =
-        process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-      await fetch(`${fastapiUrl}/api/v1/engagement`, {
+      await fetch(`${API_BASE_URL}/api/v1/engagement`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import { kstToday } from "@/lib/date";
 import { SignalCard } from "./signal-card";
 import { ThreeDotLoading } from "./three-dot-loading";
@@ -205,10 +206,8 @@ export function DailyBriefContent({
     setIsRetrying(true);
     setBrief((prev) => (prev ? { ...prev, status: "pending" } : null));
     try {
-      const { data: { session } } = await createClient().auth.getSession();
-      const token = session?.access_token;
-      const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-      await fetch(`${fastapiUrl}/api/v1/daily-briefs/trigger`, {
+      const token = await getAccessToken();
+      await fetch(`${API_BASE_URL}/api/v1/daily-briefs/trigger`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

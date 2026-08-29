@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import {
   ROLE_OPTIONS,
   EXPERIENCE_OPTIONS,
@@ -11,8 +12,6 @@ import {
   INTEREST_OPTIONS,
   TIME_OPTIONS,
 } from "@/lib/profile-options";
-
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
 
 const TOTAL_STEPS = 6; // 1~6 질문 (0 = Welcome)
 
@@ -76,16 +75,13 @@ export default function OnboardingPage() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);
     try {
-      const {
-        data: { session },
-      } = await createClient().auth.getSession();
-      const token = session?.access_token;
+      const token = await getAccessToken();
       if (!token) {
         setError("로그인 세션이 만료됐습니다. 다시 로그인해 주세요.");
         setSubmitting(false);
         return;
       }
-      const res = await fetch(`${FASTAPI_URL}/api/v1/onboarding/complete`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/onboarding/complete`, {
         method: "POST",
         signal: controller.signal,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

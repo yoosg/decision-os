@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import { QueueItem, type QueueTiming } from "./queue-item";
 import { RescheduleSheet } from "./reschedule-sheet";
 
@@ -28,14 +28,10 @@ const GROUP_ORDER: Array<{ key: QueueTiming; label: string }> = [
 ];
 
 async function postDecisionPatch(decisionId: string, queueTiming: QueueTiming) {
-  const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-  const {
-    data: { session },
-  } = await createClient().auth.getSession();
-  const token = session?.access_token;
+  const token = await getAccessToken();
   if (!token) throw new Error("Unauthenticated");
 
-  const res = await fetch(`${fastapiUrl}/api/v1/decisions/${decisionId}`, {
+  const res = await fetch(`${API_BASE_URL}/api/v1/decisions/${decisionId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

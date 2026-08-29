@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL, getAccessToken } from "@/lib/api";
 import { use } from "react";
 
 type Message = {
@@ -12,8 +13,6 @@ type Message = {
   timestamp: Date;
   isError?: boolean;
 };
-
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
 
 export default function ChatPage({ params }: { params: Promise<{ signalId: string }> }) {
   const { signalId } = use(params);
@@ -65,11 +64,9 @@ export default function ChatPage({ params }: { params: Promise<{ signalId: strin
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token ?? "";
+      const token = await getAccessToken() ?? "";
 
-      const res = await fetch(`${FASTAPI_URL}/api/v1/chat/messages`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/chat/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
