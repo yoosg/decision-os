@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { ReviewPageContent } from "@/components/home/review/review-page-content";
 import type { ReviewPayload } from "@/components/home/review/research-review-content";
+import type { ReviewType } from "@/components/home/review/review-types";
 
 export const metadata: Metadata = { title: "리뷰 | Decision OS" };
 
@@ -11,7 +12,7 @@ export type InitialReview = {
   signalTitle: string;
   payload?: ReviewPayload;
   barGateOverride?: string | null;
-  reviewType?: string | null;
+  reviewType?: ReviewType | null;
 } | null;
 
 export default async function ReviewPage({
@@ -45,7 +46,7 @@ export default async function ReviewPage({
       signalTitle,
       payload,
       barGateOverride: reviewRow.bar_gate_override as string | null | undefined,
-      reviewType: (reviewRow.result?.review_type as string | null | undefined) ?? null,
+      reviewType: ((reviewRow.result?.review_type as ReviewType | undefined) ?? null),
     };
   }
 

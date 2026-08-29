@@ -10,9 +10,10 @@ import { ProjectCardContent } from "./project-card-content";
 import type { ProjectCardPayload } from "./project-card-blocks";
 import { ReviewGeneratingState } from "./review-generating-state";
 import { ReviewFailedState } from "./review-failed-state";
+import type { ReviewType } from "./review-types";
 
 type ReviewUIState =
-  | { type: "completed"; reviewId: string; payload: ReviewPayload | ProjectCardPayload; signalTitle: string; barGateOverride?: string | null; reviewType?: string | null }
+  | { type: "completed"; reviewId: string; payload: ReviewPayload | ProjectCardPayload; signalTitle: string; barGateOverride?: string | null; reviewType?: ReviewType | null }
   | { type: "generating" }
   | { type: "failed" };
 
@@ -22,7 +23,7 @@ type InitialReview = {
   signalTitle: string;
   payload?: ReviewPayload;
   barGateOverride?: string | null;
-  reviewType?: string | null;
+  reviewType?: ReviewType | null;
 } | null;
 
 interface ReviewPageContentProps {
@@ -94,7 +95,7 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
                 payload: fetched,
                 signalTitle,
                 barGateOverride: data?.bar_gate_override as string | null,
-                reviewType: (data?.result?.review_type as string | null | undefined) ?? null,
+                reviewType: ((data?.result?.review_type as ReviewType | undefined) ?? null),
               });
             } else {
               setUIState({ type: "failed" });

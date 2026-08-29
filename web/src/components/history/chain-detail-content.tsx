@@ -8,7 +8,10 @@ import { formatCardDate } from "@/lib/kst";
 
 export interface ChainDetailData {
   signal: { id: string; title: string; status: string };
-  review: { reviewType: string | null; payload: ReviewPayload | ProjectCardPayload } | null;
+  review:
+    | { reviewType: "project_card"; payload: ProjectCardPayload }
+    | { reviewType: "research"; payload: ReviewPayload }
+    | null;
   decision: { choice: DecisionChoice; createdAt: string } | null;
   outcome: {
     status: OutcomeStatus;
@@ -132,11 +135,11 @@ export function ChainDetailContent({ data }: Props) {
         <ChainNode color="var(--text-secondary)" glyph={null} typeLabel="REVIEW">
           {review.reviewType === "project_card" ? (
             <>
-              <ProjectCardMeta payload={review.payload as ProjectCardPayload} />
-              <ProjectCardBlocks payload={review.payload as ProjectCardPayload} />
+              <ProjectCardMeta payload={review.payload} />
+              <ProjectCardBlocks payload={review.payload} />
             </>
           ) : (
-            <ReviewSections payload={review.payload as ReviewPayload} />
+            <ReviewSections payload={review.payload} />
           )}
         </ChainNode>
       )}
