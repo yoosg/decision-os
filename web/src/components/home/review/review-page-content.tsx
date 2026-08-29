@@ -10,6 +10,7 @@ import { ProjectCardContent } from "./project-card-content";
 import type { ProjectCardPayload } from "./project-card-blocks";
 import { ReviewGeneratingState } from "./review-generating-state";
 import { ReviewFailedState } from "./review-failed-state";
+import { toReviewType } from "./review-types";
 import type { ReviewType } from "./review-types";
 
 type ReviewUIState =
@@ -95,7 +96,7 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
                 payload: fetched,
                 signalTitle,
                 barGateOverride: data?.bar_gate_override as string | null,
-                reviewType: ((data?.result?.review_type as ReviewType | undefined) ?? null),
+                reviewType: toReviewType(data?.result?.review_type),
               });
             } else {
               setUIState({ type: "failed" });
