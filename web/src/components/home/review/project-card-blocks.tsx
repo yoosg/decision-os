@@ -192,13 +192,19 @@ export function ProjectCardBlocks({
 
   return (
     <>
-      {/* ① 완성하면 이게 나와 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>📦 완성하면 이게 나와</h2>
-        <p className="text-body">{payload.deliverable}</p>
-        <p className="text-body" style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
-          이렇게 보이면 성공 — {payload.success_preview}
-        </p>
+      {/* ① 완성하면 이게 나와 — 히어로 */}
+      <section
+        style={{
+          marginBottom: "20px",
+          background: "var(--accent-primary, #0D0D0D)",
+          color: "#fff",
+          borderRadius: "14px",
+          padding: "16px",
+        }}
+      >
+        <p className="text-label" style={{ opacity: 0.65, marginBottom: "6px" }}>📦 완성하면 이게 나와</p>
+        <p className="text-body-large" style={{ marginBottom: "6px" }}>{payload.deliverable}</p>
+        <p className="text-body" style={{ opacity: 0.8 }}>✓ {payload.success_preview}</p>
       </section>
 
       {/* ② 시작 전 준비물 */}
