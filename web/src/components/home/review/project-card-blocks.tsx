@@ -210,7 +210,7 @@ export function ProjectCardBlocks({
       {/* ② 시작 전 준비물 */}
       <section style={{ marginBottom: "24px" }}>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>🧰 시작 전 준비물</h2>
-        <p className="text-body">{payload.prerequisites}</p>
+        <p className="text-body" style={{ color: "var(--text-secondary)" }}>{payload.prerequisites}</p>
       </section>
 
       {/* ③ 이렇게 시작해 */}
@@ -249,7 +249,7 @@ export function ProjectCardBlocks({
         {(payload.troubleshooting ?? []).map((t, i) => (
           <div key={i} style={{ marginBottom: "12px" }}>
             <p className="text-body" style={{ fontWeight: 600 }}>{t.symptom}</p>
-            <p className="text-body" style={{ color: "var(--text-secondary)" }}>{t.fix}</p>
+            <p className="text-body" style={{ color: "var(--text-secondary)" }}>→ {t.fix}</p>
           </div>
         ))}
       </section>
