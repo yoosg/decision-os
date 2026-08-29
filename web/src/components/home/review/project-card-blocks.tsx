@@ -242,6 +242,8 @@ export function ProjectCardBlocks({
         </div>
       </section>
 
+      <div style={{ height: "1px", background: "#F0F0F0", margin: "0 0 20px" }} />
+
       {/* ④ 진행 과정 */}
       <section style={INTERACTIVE_BLOCK_STYLE}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -264,6 +266,8 @@ export function ProjectCardBlocks({
           </div>
         ))}
       </section>
+
+      <div style={{ height: "1px", background: "#F0F0F0", margin: "0 0 20px" }} />
 
       {/* ⑥ 다 됐는지 확인 */}
       <section style={INTERACTIVE_BLOCK_STYLE}>

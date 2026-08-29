@@ -43,8 +43,10 @@ export function ProjectCardContent({ signalTitle, payload, reviewId }: Props) {
 
       <ProjectCardBlocks payload={payload} progress={progress} />
 
+      <div style={{ height: "1px", background: "#F0F0F0", margin: "0 0 20px" }} />
+
       {/* ⑦ 결과 남기기 — 단일선택, 재탭 시 해제 */}
-      <section style={{ marginTop: "8px" }}>
+      <section>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>결과 남기기</h2>
         <div style={{ display: "flex", gap: "8px" }}>
           {OUTCOMES.map((o) => {
