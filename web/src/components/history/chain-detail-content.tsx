@@ -5,6 +5,7 @@ import { OUTCOME_OPTIONS, type OutcomeStatus } from "@/components/home/outcome/o
 import { ArchivedBanner } from "./archived-banner";
 import { dotVisual, DECISION_TYPE_LABEL, type DecisionChoice } from "./memory-timeline-item";
 import { formatCardDate } from "@/lib/kst";
+import { BackLink } from "@/components/ui/back-link";
 
 export interface ChainDetailData {
   signal: { id: string; title: string; status: string };
@@ -102,22 +103,7 @@ export function ChainDetailContent({ data }: Props) {
 
   return (
     <div className="screen-container" style={{ paddingTop: "24px", paddingBottom: "48px" }}>
-      <Link
-        href="/history"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          color: "var(--text-secondary)",
-          marginBottom: "20px",
-        }}
-        className="text-label"
-      >
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        히스토리로
-      </Link>
+      <BackLink href="/history">히스토리로</BackLink>
 
       {signal.status === "archived" && (
         <div style={{ marginBottom: "24px" }}>

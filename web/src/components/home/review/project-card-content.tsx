@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "./project-card-blocks";
 import { useCardProgress, type CardResult } from "./use-card-progress";
+import { BackLink } from "@/components/ui/back-link";
 
 interface Props {
   signalId: string;
@@ -36,16 +36,7 @@ export function ProjectCardContent({ signalTitle, payload, reviewId }: Props) {
   return (
     <div className="screen-container" style={{ paddingTop: "24px", paddingBottom: "96px" }}>
       {/* 홈으로 백링크 — 기존 그대로 */}
-      <Link
-        href="/home"
-        className="text-label"
-        style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "var(--text-secondary)", marginBottom: "20px" }}
-      >
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        홈으로
-      </Link>
+      <BackLink href="/home">홈으로</BackLink>
 
       <h1 className="text-screen-title" style={{ marginBottom: "12px" }}>{signalTitle}</h1>
       <ProjectCardMeta payload={payload} />
