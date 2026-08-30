@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL, getAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 
 export type CardResult = "success" | "stuck" | "dropped";
 

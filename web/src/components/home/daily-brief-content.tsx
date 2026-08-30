@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { API_BASE_URL, getAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { kstToday } from "@/lib/date";
 import { SignalCard } from "./signal-card";
 import { ThreeDotLoading } from "./three-dot-loading";

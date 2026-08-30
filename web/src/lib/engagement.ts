@@ -11,7 +11,8 @@
  * impression 타입을 허용 목록에 둔 건 향후 클라 뷰포트 계측 확장 여지를 위한 것으로, 지금 웹은
  * open·read_through만 전송한다(D2/D3).
  */
-import { API_BASE_URL, getAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 
 type EngagementEventType = "impression" | "open" | "read_through";
 

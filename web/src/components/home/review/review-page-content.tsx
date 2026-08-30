@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { API_BASE_URL, getAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { trackEngagement } from "@/lib/engagement";
 import { ResearchReviewContent } from "./research-review-content";
 import type { ReviewPayload } from "./research-review-content";

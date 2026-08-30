@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL, getAccessToken } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { trackEngagement } from "@/lib/engagement";
 
 const REQUIRED_SECTIONS = new Set([
