@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { CardProgress } from "./use-card-progress";
 
-const INTERACTIVE_BLOCK_STYLE: React.CSSProperties = {
+const INTERACTIVE_BLOCK_STYLE: CSSProperties = {
   background: "var(--surface-card, #F7F7F7)",
   borderLeft: "3px solid var(--accent-primary, #0D0D0D)",
   borderRadius: "0 12px 12px 0",
@@ -108,8 +108,8 @@ function CheckableList<T>({
   items: T[];
   checked: Set<number>;
   onToggle: (i: number) => void;
-  renderLabel: (item: T) => React.ReactNode;
-  header?: React.ReactNode;
+  renderLabel: (item: T) => ReactNode;
+  header?: ReactNode;
 }) {
   return (
     <div>
