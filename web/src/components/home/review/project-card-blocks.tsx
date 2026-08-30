@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { CardProgress } from "./use-card-progress";
+
+const INTERACTIVE_BLOCK_STYLE: CSSProperties = {
+  background: "var(--surface-card, #F7F7F7)",
+  borderLeft: "3px solid var(--accent-primary, #0D0D0D)",
+  borderRadius: "0 12px 12px 0",
+  padding: "14px",
+  marginBottom: "20px",
+};
 
 export interface ProjectCardPayload {
   skill_label: string;
@@ -23,22 +31,28 @@ export const CARD_DIFFICULTY_LABEL: Record<ProjectCardPayload["difficulty"], str
   challenge: "도전",
 };
 
+export const CARD_DIFFICULTY_DOTS: Record<ProjectCardPayload["difficulty"], string> = {
+  first_step: "●○○",
+  basic: "●●○",
+  challenge: "●●●",
+};
+
 export function ProjectCardMeta({ payload }: { payload: ProjectCardPayload }) {
   return (
-    <>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "8px" }}>
-        <span
-          className="text-label"
-          style={{ background: "var(--surface-card, #F2F2F2)", borderRadius: "9999px", padding: "4px 12px" }}
-        >
-          🏷️ {CARD_DIFFICULTY_LABEL[payload.difficulty]}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", marginBottom: "20px" }}>
+      <span
+        className="text-label"
+        style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--surface-card, #F2F2F2)", borderRadius: "9999px", padding: "4px 12px" }}
+      >
+        {CARD_DIFFICULTY_LABEL[payload.difficulty]}
+        <span aria-hidden="true" style={{ letterSpacing: "1px", fontSize: "11px" }}>
+          {CARD_DIFFICULTY_DOTS[payload.difficulty]}
         </span>
-        <span className="text-label" style={{ color: "var(--text-secondary)" }}>⏱ {payload.estimated_minutes}분</span>
-      </div>
-      <p className="text-body" style={{ color: "var(--text-secondary)", marginBottom: "24px" }}>
-        🎓 {payload.skill_label}
-      </p>
-    </>
+      </span>
+      <span className="text-label" style={{ color: "var(--text-secondary)" }}>
+        ⏱ {payload.estimated_minutes}분 · 🎓 {payload.skill_label}
+      </span>
+    </div>
   );
 }
 
@@ -71,15 +85,51 @@ function CopyPromptButton({ text }: { text: string }) {
       onClick={handleCopy}
       className="text-label"
       style={{
-        border: "1px solid var(--border-subtle, #E5E5E5)",
+        border: copied ? "1px solid var(--accent-primary, #0D0D0D)" : "1px solid var(--border-subtle, #E5E5E5)",
         borderRadius: "9999px",
-        background: "transparent",
+        background: copied ? "var(--accent-primary, #0D0D0D)" : "transparent",
+        color: copied ? "#fff" : "inherit",
         padding: "4px 12px",
         cursor: "pointer",
       }}
     >
-      {copied ? "복사됨!" : "📋 복사"}
+      {copied ? "✓ 복사됨" : "📋 복사"}
     </button>
+  );
+}
+
+function CheckableList<T>({
+  items,
+  checked,
+  onToggle,
+  renderLabel,
+  header,
+}: {
+  items: T[];
+  checked: Set<number>;
+  onToggle: (i: number) => void;
+  renderLabel: (item: T) => ReactNode;
+  header?: ReactNode;
+}) {
+  return (
+    <div>
+      {header}
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {items.map((item, i) => (
+          <li key={i} style={{ marginBottom: "12px" }}>
+            <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={checked.has(i)}
+                onChange={() => onToggle(i)}
+                style={{ marginTop: "3px" }}
+              />
+              <span>{renderLabel(item)}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -93,31 +143,24 @@ function MilestoneList({
   onToggle: (i: number) => void;
 }) {
   return (
-    <div>
-      <p className="text-label" style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>
-        {checked.size}/{milestones.length}
-      </p>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {milestones.map((m, i) => (
-          <li key={i} style={{ marginBottom: "12px" }}>
-            <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={checked.has(i)}
-                onChange={() => onToggle(i)}
-                style={{ marginTop: "3px" }}
-              />
-              <span>
-                <span className="text-body" style={{ display: "block" }}>{m.action}</span>
-                <span className="text-body" style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                  끝나면: {m.done_signal}
-                </span>
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <CheckableList
+      items={milestones}
+      checked={checked}
+      onToggle={onToggle}
+      header={
+        <p className="text-label" style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>
+          {checked.size}/{milestones.length}
+        </p>
+      }
+      renderLabel={(m) => (
+        <>
+          <span className="text-body" style={{ display: "block" }}>{m.action}</span>
+          <span className="text-body" style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
+            끝나면 · {m.done_signal}
+          </span>
+        </>
+      )}
+    />
   );
 }
 
@@ -131,21 +174,12 @@ function SuccessChecklist({
   onToggle: (i: number) => void;
 }) {
   return (
-    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-      {items.map((it, i) => (
-        <li key={i} style={{ marginBottom: "8px" }}>
-          <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={checked.has(i)}
-              onChange={() => onToggle(i)}
-              style={{ marginTop: "3px" }}
-            />
-            <span className="text-body">{it}</span>
-          </label>
-        </li>
-      ))}
-    </ul>
+    <CheckableList
+      items={items}
+      checked={checked}
+      onToggle={onToggle}
+      renderLabel={(it) => <span className="text-body">{it}</span>}
+    />
   );
 }
 
@@ -167,19 +201,25 @@ export function ProjectCardBlocks({
 
   return (
     <>
-      {/* ① 완성하면 이게 나와 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>📦 완성하면 이게 나와</h2>
-        <p className="text-body">{payload.deliverable}</p>
-        <p className="text-body" style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
-          이렇게 보이면 성공 — {payload.success_preview}
-        </p>
+      {/* ① 완성하면 이게 나와 — 히어로 */}
+      <section
+        style={{
+          marginBottom: "20px",
+          background: "var(--accent-primary, #0D0D0D)",
+          color: "#fff",
+          borderRadius: "14px",
+          padding: "16px",
+        }}
+      >
+        <p className="text-label" style={{ opacity: 0.65, marginBottom: "6px" }}>📦 완성하면 이게 나와</p>
+        <p className="text-body-large" style={{ marginBottom: "6px" }}>{payload.deliverable}</p>
+        <p className="text-body" style={{ opacity: 0.8 }}>✓ {payload.success_preview}</p>
       </section>
 
       {/* ② 시작 전 준비물 */}
       <section style={{ marginBottom: "24px" }}>
         <h2 className="text-section-title" style={{ marginBottom: "8px" }}>🧰 시작 전 준비물</h2>
-        <p className="text-body">{payload.prerequisites}</p>
+        <p className="text-body" style={{ color: "var(--text-secondary)" }}>{payload.prerequisites}</p>
       </section>
 
       {/* ③ 이렇게 시작해 */}
@@ -202,9 +242,13 @@ export function ProjectCardBlocks({
         </div>
       </section>
 
+      <div style={{ height: "1px", background: "#F0F0F0", margin: "0 0 20px" }} />
+
       {/* ④ 진행 과정 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>🗺️ 진행 과정</h2>
+      <section style={INTERACTIVE_BLOCK_STYLE}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <h2 className="text-section-title" style={{ margin: 0 }}>🗺️ 진행 과정</h2>
+        </div>
         <MilestoneList
           milestones={payload.milestones ?? []}
           checked={milestoneChecked}
@@ -218,14 +262,16 @@ export function ProjectCardBlocks({
         {(payload.troubleshooting ?? []).map((t, i) => (
           <div key={i} style={{ marginBottom: "12px" }}>
             <p className="text-body" style={{ fontWeight: 600 }}>{t.symptom}</p>
-            <p className="text-body" style={{ color: "var(--text-secondary)" }}>{t.fix}</p>
+            <p className="text-body" style={{ color: "var(--text-secondary)" }}>→ {t.fix}</p>
           </div>
         ))}
       </section>
 
+      <div style={{ height: "1px", background: "#F0F0F0", margin: "0 0 20px" }} />
+
       {/* ⑥ 다 됐는지 확인 */}
-      <section style={{ marginBottom: "24px" }}>
-        <h2 className="text-section-title" style={{ marginBottom: "8px" }}>✅ 다 됐는지 확인</h2>
+      <section style={INTERACTIVE_BLOCK_STYLE}>
+        <h2 className="text-section-title" style={{ marginBottom: "10px" }}>✅ 다 됐는지 확인</h2>
         <SuccessChecklist
           items={payload.success_checklist ?? []}
           checked={checklistChecked}

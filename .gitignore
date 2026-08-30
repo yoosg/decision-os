@@ -63,3 +63,6 @@ mobile/pubspec.lock
 # BMad 산출물 (개발 대상 아님)
 # ============================================================
 _bmad-output/**/.env*
+
+# Superpowers brainstorming visual companion
+.superpowers/

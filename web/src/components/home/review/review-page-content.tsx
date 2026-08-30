@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { trackEngagement } from "@/lib/engagement";
 import { ResearchReviewContent } from "./research-review-content";
 import type { ReviewPayload } from "./research-review-content";
@@ -9,9 +11,11 @@ import { ProjectCardContent } from "./project-card-content";
 import type { ProjectCardPayload } from "./project-card-blocks";
 import { ReviewGeneratingState } from "./review-generating-state";
 import { ReviewFailedState } from "./review-failed-state";
+import { toReviewType } from "./review-types";
+import type { ReviewType } from "./review-types";
 
 type ReviewUIState =
-  | { type: "completed"; reviewId: string; payload: ReviewPayload | ProjectCardPayload; signalTitle: string; barGateOverride?: string | null; reviewType?: string | null }
+  | { type: "completed"; reviewId: string; payload: ReviewPayload | ProjectCardPayload; signalTitle: string; barGateOverride?: string | null; reviewType?: ReviewType | null }
   | { type: "generating" }
   | { type: "failed" };
 
@@ -21,7 +25,7 @@ type InitialReview = {
   signalTitle: string;
   payload?: ReviewPayload;
   barGateOverride?: string | null;
-  reviewType?: string | null;
+  reviewType?: ReviewType | null;
 } | null;
 
 interface ReviewPageContentProps {
@@ -93,7 +97,7 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
                 payload: fetched,
                 signalTitle,
                 barGateOverride: data?.bar_gate_override as string | null,
-                reviewType: (data?.result?.review_type as string | null | undefined) ?? null,
+                reviewType: toReviewType(data?.result?.review_type),
               });
             } else {
               setUIState({ type: "failed" });
@@ -111,10 +115,8 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
   };
 
   const triggerAPI = async (): Promise<string | null> => {
-    const { data: { session } } = await createClient().auth.getSession();
-    const token = session?.access_token;
-    const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-    const res = await fetch(`${fastapiUrl}/api/v1/reviews/trigger`, {
+    const token = await getAccessToken();
+    const res = await fetch(`${API_BASE_URL}/api/v1/reviews/trigger`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

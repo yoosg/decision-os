@@ -3,10 +3,10 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { OutcomeCard } from "@/components/home/outcome/outcome-card";
 import { OUTCOME_OPTIONS, type OutcomeStatus } from "@/components/home/outcome/outcome-options";
-
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
 
 export default function OutcomePage({ params }: { params: Promise<{ signalId: string }> }) {
   const { signalId } = use(params);
@@ -84,17 +84,14 @@ export default function OutcomePage({ params }: { params: Promise<{ signalId: st
     if (!selectedStatus || !decisionId || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const {
-        data: { session },
-      } = await createClient().auth.getSession();
-      const token = session?.access_token;
+      const token = await getAccessToken();
       if (!token) {
         setToastMessage("로그인 세션이 만료됐습니다. 새로고침 후 다시 시도해 주세요.");
         setIsSubmitting(false);
         return;
       }
 
-      const res = await fetch(`${FASTAPI_URL}/api/v1/outcomes`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/outcomes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

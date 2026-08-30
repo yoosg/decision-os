@@ -74,8 +74,12 @@ export default async function ChainDetailPage({
     outcomeRow = data as unknown as OutcomeRow | null;
   }
 
-  const payload = reviewRow?.result?.payload as ReviewPayload | ProjectCardPayload | undefined;
-  const reviewType = reviewRow?.result?.review_type ?? null;
+  const payload = reviewRow?.result?.payload as
+    | ReviewPayload
+    | ProjectCardPayload
+    | undefined;
+  const reviewType =
+    reviewRow?.result?.review_type === "project_card" ? "project_card" : "research";
 
   const data: ChainDetailData = {
     signal: {
@@ -83,7 +87,9 @@ export default async function ChainDetailPage({
       title: signal.title as string,
       status: signal.status as string,
     },
-    review: payload ? { reviewType, payload } : null,
+    review: payload
+      ? ({ reviewType, payload } as ChainDetailData["review"])
+      : null,
     decision: decisionRow
       ? { choice: decisionRow.choice as DecisionChoice, createdAt: decisionRow.created_at }
       : null,

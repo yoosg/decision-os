@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 
 export type CardResult = "success" | "stuck" | "dropped";
 
@@ -15,13 +16,7 @@ export interface CardProgress {
   saveError: boolean;
 }
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
 const DEBOUNCE_MS = 600;
-
-async function getToken(): Promise<string | null> {
-  const { data: { session } } = await createClient().auth.getSession();
-  return session?.access_token ?? null;
-}
 
 export function useCardProgress(reviewId: string | null): CardProgress {
   const [milestonesChecked, setMilestones] = useState<Set<number>>(new Set());
@@ -50,10 +45,10 @@ export function useCardProgress(reviewId: string | null): CardProgress {
     if (!reviewId) return;
     let cancelled = false;
     (async () => {
-      const token = await getToken();
+      const token = await getAccessToken();
       if (!token || cancelled) return;
       try {
-        const res = await fetch(`${FASTAPI_URL}/api/v1/project-cards/${reviewId}/progress`, {
+        const res = await fetch(`${API_BASE_URL}/api/v1/project-cards/${reviewId}/progress`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok || cancelled) return;
@@ -80,10 +75,10 @@ export function useCardProgress(reviewId: string | null): CardProgress {
     if (!reviewId) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
-      const token = await getToken();
+      const token = await getAccessToken();
       if (!token) return; // 미인증 → 로컬 전용
       try {
-        const res = await fetch(`${FASTAPI_URL}/api/v1/project-cards/${reviewId}/progress`, {
+        const res = await fetch(`${API_BASE_URL}/api/v1/project-cards/${reviewId}/progress`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({

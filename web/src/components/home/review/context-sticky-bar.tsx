@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api-config";
+import { getAccessToken } from "@/lib/api";
 import { trackEngagement } from "@/lib/engagement";
 
 const REQUIRED_SECTIONS = new Set([
@@ -150,13 +152,7 @@ export function ContextStickyBar({
     queue_timing?: string;
     memo?: string;
   }) => {
-    const fastapiUrl =
-      process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000";
-    const { createClient } = await import("@/lib/supabase");
-    const {
-      data: { session },
-    } = await createClient().auth.getSession();
-    const token = session?.access_token;
+    const token = await getAccessToken();
 
     // P8: 세션 만료 감지
     if (!token) {
@@ -164,7 +160,7 @@ export function ContextStickyBar({
       throw new Error("Unauthenticated");
     }
 
-    const res = await fetch(`${fastapiUrl}/api/v1/decisions`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/decisions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
