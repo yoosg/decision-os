@@ -59,6 +59,8 @@ export function ProjectCardIdentity({
   const topicLink = payload.topic_link?.trim();
   const title = variant === "detail" ? projectTitle || signalTitle : projectTitle;
 
+  if (!title && !topicLink) return null;
+
   return (
     <div style={{ marginBottom: "12px" }}>
       {title &&
@@ -76,7 +78,7 @@ export function ProjectCardIdentity({
           {topicLink}
         </p>
       )}
-      {variant === "detail" && (
+      {variant === "detail" && projectTitle && (
         <p className="text-caption" style={{ color: "var(--text-secondary)" }}>
           📰 출처 토픽 · {signalTitle}
         </p>

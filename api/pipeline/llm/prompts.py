@@ -340,7 +340,7 @@ def parse_and_validate_card(raw: str) -> None:
         if not isinstance(value, str) or not value.strip():
             raise LLMProviderError(f"{field}가 비어있거나 문자열이 아님: {value!r}")
     title = parsed["project_title"]
-    if len(title) > CARD_TITLE_MAX_LEN:
+    if len(title.strip()) > CARD_TITLE_MAX_LEN:
         raise LLMProviderError(
-            f"project_title이 너무 김({len(title)}자 > {CARD_TITLE_MAX_LEN}): {title!r}"
+            f"project_title이 너무 김({len(title.strip())}자 > {CARD_TITLE_MAX_LEN}): {title!r}"
         )
