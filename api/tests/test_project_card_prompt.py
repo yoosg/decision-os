@@ -4,6 +4,8 @@ import pytest
 
 from pipeline.llm.base import LLMProviderError, ReviewContext
 from pipeline.llm.prompts import (
+    CARD_TITLE_MAX_LEN,
+    PROJECT_CARD_SYSTEM_PROMPT,
     REQUIRED_CARD_BLOCKS,
     build_card_user_content,
     parse_and_validate_card,
@@ -12,6 +14,8 @@ from pipeline.llm.prompts import (
 
 def _valid_card() -> dict:
     return {
+        "project_title": "AI에게 질문하는 나만의 챗봇 만들기",
+        "topic_link": "새 모델 발표의 핵심인 '질문에 답하기'를 직접 만들어봅니다.",
         "skill_label": "웹폼 만들고 데이터 저장하기",
         "difficulty": "first_step",
         "estimated_minutes": 30,
@@ -80,6 +84,7 @@ def test_build_card_user_content_includes_topic_and_sources():
 
 
 _STRING_BLOCKS = [
+    "project_title", "topic_link",
     "skill_label", "deliverable", "success_preview",
     "prerequisites", "how_to_start", "example_prompt",
 ]
@@ -100,3 +105,36 @@ def test_non_string_block_raises(field):
     card[field] = 123
     with pytest.raises(LLMProviderError, match=field):
         parse_and_validate_card(json.dumps(card))
+
+
+def test_missing_project_title_raises():
+    card = _valid_card()
+    del card["project_title"]
+    with pytest.raises(LLMProviderError, match="필수 블록 누락"):
+        parse_and_validate_card(json.dumps(card))
+
+
+def test_missing_topic_link_raises():
+    card = _valid_card()
+    del card["topic_link"]
+    with pytest.raises(LLMProviderError, match="필수 블록 누락"):
+        parse_and_validate_card(json.dumps(card))
+
+
+def test_project_title_at_max_len_passes():
+    card = _valid_card()
+    card["project_title"] = "가" * CARD_TITLE_MAX_LEN
+    parse_and_validate_card(json.dumps(card))  # 예외 없이 통과
+
+
+def test_project_title_over_max_len_raises():
+    card = _valid_card()
+    card["project_title"] = "가" * (CARD_TITLE_MAX_LEN + 1)
+    with pytest.raises(LLMProviderError, match="project_title"):
+        parse_and_validate_card(json.dumps(card))
+
+
+def test_system_prompt_lists_every_required_block():
+    # 프롬프트에 안 적힌 키를 검증만 강제하면 생성이 통째로 실패한다 — 회귀 방지용
+    for key in REQUIRED_CARD_BLOCKS:
+        assert key in PROJECT_CARD_SYSTEM_PROMPT
