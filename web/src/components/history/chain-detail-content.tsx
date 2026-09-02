@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReviewSections, type ReviewPayload } from "@/components/home/review/review-sections";
-import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "@/components/home/review/project-card-blocks";
+import { ProjectCardBlocks, ProjectCardIdentity, ProjectCardMeta, type ProjectCardPayload } from "@/components/home/review/project-card-blocks";
 import { OUTCOME_OPTIONS, type OutcomeStatus } from "@/components/home/outcome/outcome-options";
 import { ArchivedBanner } from "./archived-banner";
 import { dotVisual, DECISION_TYPE_LABEL, type DecisionChoice } from "./memory-timeline-item";
@@ -123,6 +123,7 @@ export function ChainDetailContent({ data }: Props) {
           {review.reviewType === "project_card" ? (
             <>
               <VibeCodingGuide />
+              <ProjectCardIdentity payload={review.payload} signalTitle={signal.title} variant="chain" />
               <ProjectCardMeta payload={review.payload} />
               <ProjectCardBlocks payload={review.payload} />
             </>

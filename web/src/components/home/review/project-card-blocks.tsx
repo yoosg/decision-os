@@ -12,6 +12,10 @@ const INTERACTIVE_BLOCK_STYLE: CSSProperties = {
 };
 
 export interface ProjectCardPayload {
+  /** 만들거리 제목. 이 필드 이전에 생성된 카드에는 없다 — 하위호환을 위해 optional */
+  project_title?: string;
+  /** "왜 이 토픽에서 이게 나왔나" 한 줄. 위와 같은 이유로 optional */
+  topic_link?: string;
   skill_label: string;
   difficulty: "first_step" | "basic" | "challenge";
   estimated_minutes: number;
@@ -36,6 +40,50 @@ export const CARD_DIFFICULTY_DOTS: Record<ProjectCardPayload["difficulty"], stri
   basic: "●●○",
   challenge: "●●●",
 };
+
+/**
+ * 카드의 정체성 블록 — 만들거리 제목 + 토픽 연결 한 줄.
+ * detail: 화면 최상단 h1. 제목이 없는 옛 카드는 뉴스 제목으로 폴백하고, 출처 토픽 라벨을 함께 보여준다.
+ * chain:  체인의 REVIEW 노드 안 h2. SIGNAL 노드가 이미 뉴스 제목을 들고 있어 출처 라벨은 생략한다.
+ */
+export function ProjectCardIdentity({
+  payload,
+  signalTitle,
+  variant,
+}: {
+  payload: ProjectCardPayload;
+  signalTitle: string;
+  variant: "detail" | "chain";
+}) {
+  const projectTitle = payload.project_title?.trim();
+  const topicLink = payload.topic_link?.trim();
+  const title = variant === "detail" ? projectTitle || signalTitle : projectTitle;
+
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      {title &&
+        (variant === "detail" ? (
+          <h1 className="text-screen-title" style={{ marginBottom: "6px" }}>
+            {title}
+          </h1>
+        ) : (
+          <h2 className="text-section-title" style={{ marginBottom: "6px" }}>
+            {title}
+          </h2>
+        ))}
+      {topicLink && (
+        <p className="text-body" style={{ color: "var(--text-secondary)", marginBottom: "4px" }}>
+          {topicLink}
+        </p>
+      )}
+      {variant === "detail" && (
+        <p className="text-caption" style={{ color: "var(--text-secondary)" }}>
+          📰 출처 토픽 · {signalTitle}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function ProjectCardMeta({ payload }: { payload: ProjectCardPayload }) {
   return (
