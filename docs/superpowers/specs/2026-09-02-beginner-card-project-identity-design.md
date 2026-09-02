@@ -93,11 +93,17 @@ DB 마이그레이션 없음.
 `ProjectCardPayload`에 두 필드를 **optional**로 추가한다. 백엔드 검증은 필수지만 웹 타입은 optional —
 새 카드는 항상 제목을 갖고, 이미 저장된 옛 카드는 깨지지 않는다.
 
-- 헤더 `h1` = `payload.project_title ?? signalTitle`
-- 헤더 아래: `topic_link` 한 줄 + `📰 출처 토픽 · {signalTitle}` 라벨 (둘 다 값이 있을 때만 렌더)
-- 적용 지점 2곳
-  - `web/src/components/home/review/project-card-content.tsx` — 카드 상세
-  - `web/src/components/history/chain-detail-content.tsx` — 체인 상세
+두 화면이 같은 정체성 블록을 쓰되 노출 형태가 다르므로, `project-card-blocks.tsx`에 공용
+컴포넌트 `ProjectCardIdentity`를 두고 `variant`로 갈라 쓴다.
+
+- **카드 상세**(`web/src/components/home/review/project-card-content.tsx`, `variant="detail"`)
+  헤더 `h1` = `payload.project_title ?? signalTitle`, 그 아래 `topic_link` 한 줄 +
+  `📰 출처 토픽 · {signalTitle}` 라벨.
+- **체인 상세**(`web/src/components/history/chain-detail-content.tsx`, `variant="chain"`)
+  SIGNAL 노드의 `h1`은 **뉴스 제목 그대로 유지**한다 — 그 노드가 가리키는 대상이 실제로 시그널이기
+  때문이다. 카드 제목은 REVIEW 노드 안, `ProjectCardMeta` 위에 `h2`로 넣고 `topic_link`를 뒤따르게
+  한다. 출처 토픽 라벨은 SIGNAL 노드와 중복되므로 렌더하지 않는다.
+- 두 경우 모두 값이 없으면(옛 카드) 해당 줄을 렌더하지 않는다.
 - `ProjectCardMeta`는 그대로. `skill_label`은 재정의됐을 뿐 위치·표기(`🎓 {skill_label}`)는 유지한다.
 
 ## 테스트 / 검증 계획
