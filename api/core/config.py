@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # 프리티어 rate-limit 방어: 429 시 지수 백오프 재시도 횟수 + 호출 간 최소 간격(초)
     gemini_max_retries: int = 4
     gemini_request_delay_sec: float = 0.0
+    # 응답 대기 상한(초). SDK 기본값에 타임아웃이 없어, 프로바이더 장애 시 호출이 무한정 매달린다.
+    # 카드 생성이 실측 20~30초라 한 배수 여유를 뒀다(OpenAI 프로바이더는 30초).
+    gemini_timeout_sec: float = 60.0
     firebase_service_account_json: str = Field(default="", repr=False)
     # Story 6.1: 실 수집기 어댑터 — "real"(외부 소스 수집) | "stub"(하드코딩 5건 폴백)
     # Literal로 강제 — 오타(예: "Stub")가 조용히 real 실네트워크 경로로 빠지지 않게 로드 시 검증.

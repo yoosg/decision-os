@@ -24,10 +24,17 @@ class GeminiProvider(LLMProvider):
         embedding_model: str = "text-embedding-3-small",
         max_retries: int = 4,
         request_delay_sec: float = 0.0,
+        timeout_sec: float = 60.0,
         client=None,
         embedder=None,
     ) -> None:
-        self._client = client or genai.Client(api_key=gemini_api_key)
+        # SDK 기본값에는 타임아웃이 없다. 프로바이더가 응답을 안 주면 호출이 무한정 매달리고,
+        # 온디맨드 생성 경로라 유저는 실패 화면 대신 끝나지 않는 로딩을 본다.
+        # HttpOptions.timeout 단위는 밀리초.
+        self._client = client or genai.Client(
+            api_key=gemini_api_key,
+            http_options=types.HttpOptions(timeout=int(timeout_sec * 1000)),
+        )
         self._model = model
         self._max_retries = max_retries
         self._request_delay_sec = request_delay_sec

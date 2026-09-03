@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ProjectCardBlocks, ProjectCardMeta, type ProjectCardPayload } from "./project-card-blocks";
+import { ProjectCardBlocks, ProjectCardIdentity, ProjectCardMeta, type ProjectCardPayload } from "./project-card-blocks";
 import { useCardProgress, type CardResult } from "./use-card-progress";
 import { BackLink } from "@/components/ui/back-link";
+import { VibeCodingGuide } from "./vibe-coding-guide";
 
 interface Props {
   signalId: string;
@@ -38,7 +39,8 @@ export function ProjectCardContent({ signalTitle, payload, reviewId }: Props) {
       {/* 홈으로 백링크 — 기존 그대로 */}
       <BackLink href="/home">홈으로</BackLink>
 
-      <h1 className="text-screen-title" style={{ marginBottom: "12px" }}>{signalTitle}</h1>
+      <ProjectCardIdentity payload={payload} signalTitle={signalTitle} variant="detail" />
+      <VibeCodingGuide />
       <ProjectCardMeta payload={payload} />
 
       <ProjectCardBlocks payload={payload} progress={progress} />

@@ -13,6 +13,8 @@ jest.mock("@/lib/engagement", () => ({ trackEngagement: jest.fn() }));
 jest.mock("@/lib/supabase", () => ({ createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }) } }) }));
 
 const cardPayload = {
+  project_title: "AI에게 질문하는 나만의 챗봇 만들기",
+  topic_link: "새 모델 발표의 핵심인 '질문에 답하기'를 직접 만들어봅니다.",
   skill_label: "웹폼 만들기", difficulty: "first_step", estimated_minutes: 30,
   deliverable: "예약 폼", success_preview: "목록에 추가됨", prerequisites: "없음",
   how_to_start: "붙여넣기", example_prompt: "만들어줘",

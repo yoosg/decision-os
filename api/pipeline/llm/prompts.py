@@ -229,6 +229,7 @@ def parse_and_validate_learnability(raw: str, expected_count: int) -> list[dict]
 
 
 REQUIRED_CARD_BLOCKS = [
+    "project_title", "topic_link",
     "skill_label", "difficulty", "estimated_minutes",
     "deliverable", "success_preview", "prerequisites",
     "how_to_start", "example_prompt",
@@ -237,11 +238,36 @@ REQUIRED_CARD_BLOCKS = [
 
 CARD_DIFFICULTIES = ["first_step", "basic", "challenge"]
 
-PROJECT_CARD_SYSTEM_PROMPT = """당신은 '개발 입문자'를 위한 학습 코치입니다. 주어진 기술/토픽으로 입문자가 직접 만들어보는(바이브코딩) '프로젝트 카드'를 JSON으로 작성하세요.
-전문용어를 피하고 쉬운 말로, 누구에게나 동일한 '표준' 내용으로 작성합니다(특정 개인 맞춤 아님).
-반드시 아래 11개 키를 모두 포함한 JSON 객체만 반환하세요(마크다운 코드블록 없이):
+# project_title이 뉴스 헤드라인 복붙으로 채워지는 것을 막는 안전핀.
+# 목표는 30자 내외지만, 상한은 넉넉히 잡아 정상 카드가 탈락하지 않게 한다.
+CARD_TITLE_MAX_LEN = 60
+
+PROJECT_CARD_SYSTEM_PROMPT = """당신은 '개발 입문자'를 위한 학습 코치입니다. 주어진 기술/토픽을 재료 삼아, 입문자가 직접 만들어보는(바이브코딩) '프로젝트 카드'를 JSON으로 작성하세요.
+
+## 작성 순서 (반드시 이 순서로 생각하세요)
+
+1단계 — 먼저 '만들거리' 하나를 정합니다.
+- 입문자가 AI 코딩 도구로 몇십 분 안에 완주할 수 있는 작은 프로젝트여야 합니다.
+- 우선 토픽의 기술을 '직접 써서' 만들 수 있는지 봅니다.
+- 직접 만들기 어려운 토픽(하드웨어, 기업 소식, 대규모 인프라 등)이면, 그 토픽의 핵심 개념만 손으로 체험하는 미니 프로젝트로 돌립니다. 이때 개념을 '설명하는' 것이 아니라 개념이 하는 일을 '작동하게 만드는' 것이어야 합니다. 예) '정책 언어(Rego vs CEL) 논쟁' → '내 앱에 간단한 접근 규칙 만들어보기', '메모리 반도체 채택 소식' → '데이터를 잠깐 담아뒀다 꺼내는 저장소 직접 만들어보기'
+- 준비물이 결제나 복잡한 설치를 요구하면, 그 만들거리를 버리고 다시 고릅니다.
+
+2단계 — 정한 만들거리를 기준으로 나머지 항목을 채웁니다.
+- 결과물·성공 모습·준비물·진행 과정·막힘 대처가 전부 '그 프로젝트를 만드는 이야기'여야 합니다.
+- 토픽 해설이나 뉴스 요약이 되어서는 안 됩니다.
+
+## 금지 사항
+
+- 토픽을 설명·정리·소개하는 산출물은 전부 금지입니다. '뉴스 요약 봇', '트렌드 정리 대시보드', '정보 소개 웹페이지', '기술 비교 정리표'처럼 토픽의 내용을 옮겨 적기만 하는 만들거리는 어떤 토픽에나 갖다 붙고, 만들어도 아무 기술이 늘지 않습니다.
+- 만들거리에는 반드시 '동작하는 것'이 있어야 합니다. 입력을 받아 무언가를 판단하거나, 저장하거나, 바꿔서 내놓는 것이어야 하고, 화면에 글을 늘어놓는 것으로 끝나서는 안 됩니다.
+- project_title에 회사명이나 모델 버전을 나열하지 마세요. 뉴스 헤드라인 어투도 금지입니다.
+- 전문용어를 피하고 쉬운 말로 씁니다. 특정 개인 맞춤이 아니라 누구에게나 동일한 '표준' 내용으로 작성합니다.
+
+반드시 아래 13개 키를 모두 포함한 JSON 객체만 반환하세요(마크다운 코드블록 없이):
 {
-  "skill_label": "이 카드로 배우는 것 (한 줄, 예: '웹폼 만들고 데이터 저장하기')",
+  "project_title": "만들거리 제목 — 무엇을 만드는지가 드러나게 (30자 내외, 예: 'AI에게 질문하는 나만의 챗봇 만들기')",
+  "topic_link": "이 토픽에서 왜 이 만들거리가 나왔는지 한 줄 (예: '정책 언어 논쟁의 핵심인 규칙으로 판단하기를 직접 만들어봅니다')",
+  "skill_label": "이 카드로 배우는 스킬 — 제목이 아니라 능력 (예: 'API 연결과 대화 상태 관리')",
   "difficulty": "first_step|basic|challenge 중 하나",
   "estimated_minutes": 30,
   "deliverable": "완성하면 손에 쥐어지는 결과물 (2-3문장)",
@@ -254,6 +280,7 @@ PROJECT_CARD_SYSTEM_PROMPT = """당신은 '개발 입문자'를 위한 학습 �
   "success_checklist": ["다 됐는지 확인할 체크 항목"]
 }
 규칙:
+- project_title은 60자 이내.
 - milestones는 큰 단계 3~5개만(잘게 쪼개지 말 것 — 지시서가 아니라 지도).
 - troubleshooting 최소 1개, success_checklist 최소 1개.
 - estimated_minutes는 양의 정수(분).
@@ -305,9 +332,15 @@ def parse_and_validate_card(raw: str) -> None:
         if not isinstance(c, str) or not c.strip():
             raise LLMProviderError(f"success_checklist 항목이 빈 문자열: {c!r}")
     for field in (
+        "project_title", "topic_link",
         "skill_label", "deliverable", "success_preview",
         "prerequisites", "how_to_start", "example_prompt",
     ):
         value = parsed[field]
         if not isinstance(value, str) or not value.strip():
             raise LLMProviderError(f"{field}가 비어있거나 문자열이 아님: {value!r}")
+    title = parsed["project_title"]
+    if len(title.strip()) > CARD_TITLE_MAX_LEN:
+        raise LLMProviderError(
+            f"project_title이 너무 김({len(title.strip())}자 > {CARD_TITLE_MAX_LEN}): {title!r}"
+        )
