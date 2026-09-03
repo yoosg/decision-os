@@ -86,3 +86,40 @@ def test_retry_exhausted_raises_llm_error(monkeypatch):
     client.models.generate_content.side_effect = Exception("429 RESOURCE_EXHAUSTED")
     with pytest.raises(LLMProviderError):
         _provider(client).build_signal_title_summary("X", [])
+
+
+# --- 타임아웃: 프로바이더 장애 시 무한 대기 방지 (Gemini SDK는 기본 타임아웃이 없다) ---
+
+def test_client_is_constructed_with_timeout(monkeypatch):
+    """client를 주입하지 않으면 genai.Client에 http_options.timeout(ms)이 전달돼야 한다."""
+    captured = {}
+
+    def fake_client(**kwargs):
+        captured.update(kwargs)
+        return MagicMock()
+
+    monkeypatch.setattr("pipeline.llm.gemini_provider.genai.Client", fake_client)
+    GeminiProvider(gemini_api_key="k", openai_api_key="ok", timeout_sec=45.0)
+
+    assert captured["http_options"].timeout == 45_000  # 초 → 밀리초
+
+
+def test_injected_client_bypasses_genai_client(monkeypatch):
+    """client를 주입하면 genai.Client를 아예 호출하지 않는다(기존 테스트 경로 보호)."""
+    def boom(**kwargs):
+        raise AssertionError("주입된 client가 있는데 genai.Client가 호출됨")
+
+    monkeypatch.setattr("pipeline.llm.gemini_provider.genai.Client", boom)
+    provider = _provider(_client_returning('{"title": "t", "summary": "s"}'))
+    assert provider.build_signal_title_summary("LangGraph", []).content
+
+
+def test_timeout_error_is_not_retried():
+    """타임아웃은 rate limit이 아니므로 재시도 없이 즉시 LLMProviderError로 올라간다."""
+    import httpx
+
+    client = MagicMock()
+    client.models.generate_content.side_effect = httpx.ReadTimeout("timed out")
+    with pytest.raises(LLMProviderError, match="timed out"):
+        _provider(client).build_signal_title_summary("LangGraph", [])
+    assert client.models.generate_content.call_count == 1

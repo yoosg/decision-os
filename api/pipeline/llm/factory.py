@@ -14,6 +14,7 @@ def get_llm_provider() -> LLMProvider:
             embedding_model=settings.openai_embedding_model,
             max_retries=settings.gemini_max_retries,
             request_delay_sec=settings.gemini_request_delay_sec,
+            timeout_sec=settings.gemini_timeout_sec,
         )
     return OpenAIProvider(
         api_key=settings.openai_api_key,
