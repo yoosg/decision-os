@@ -56,6 +56,12 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
   );
   const cleanupRef = useRef<(() => void) | undefined>(undefined);
   const retryInFlightRef = useRef(false); // P9: 동시 retry 방지
+  // 진행 중인 trigger 호출을 signalId별로 공유한다. StrictMode 이중 마운트에서 init이 두 번
+  // 도는데, 각자 triggerAPI를 부르면 서버에 POST가 2건 가서 리뷰가 중복 생성된다(관측됨).
+  // "두 번째 실행을 통째로 건너뛰기"로는 못 막는다 — 첫 실행의 cleanup이 realtime 채널을 이미
+  // 제거해서, 두 번째가 구독을 안 하면 카드가 완성돼도 화면이 안 바뀐다. 그래서 호출은 하나로
+  // 합치고(같은 Promise를 await) 구독은 양쪽 다 하게 둔다.
+  const triggerInFlightRef = useRef<{ signalId: string; promise: Promise<string | null> } | null>(null);
   const openTrackedSignalRef = useRef<string | null>(null); // 6.5: signalId별 open 1회
 
   // Story 6.5: review-page 진입 시 open engagement 1회 전송(fire-and-forget).
@@ -146,7 +152,12 @@ export function ReviewPageContent({ signalId, signalTitle, initialReview }: Revi
       // null 또는 failed — trigger API 호출
       setUIState({ type: "generating" });
       try {
-        const reviewId = await triggerAPI();
+        let inFlight = triggerInFlightRef.current;
+        if (!inFlight || inFlight.signalId !== signalId) {
+          inFlight = { signalId, promise: triggerAPI() };
+          triggerInFlightRef.current = inFlight;
+        }
+        const reviewId = await inFlight.promise;
         if (!reviewId) {
           setUIState({ type: "failed" });
           return;
