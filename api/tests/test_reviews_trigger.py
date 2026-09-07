@@ -278,3 +278,64 @@ def test_trigger_review_pending_review_type_follows_card_toggle(monkeypatch):
     assert response.status_code == 202
     assert len(insert_payloads) == 1
     assert insert_payloads[0]["review_type"] == "project_card"
+
+
+def test_trigger_review_returns_existing_when_insert_loses_race(monkeypatch):
+    """동시 요청 레이스: INSERT가 유니크 제약에 걸리면 기존 review_id를 반환하고
+    BackgroundTask를 다시 걸지 않는다.
+
+    멱등성 SELECT는 두 요청이 나란히 통과할 수 있다(비원자적 check-then-insert).
+    실제 중복을 막는 것은 DB의 부분 유니크 인덱스이고, 진 쪽 요청은 예외를 유저에게
+    올리는 대신 이긴 쪽의 review_id를 돌려줘야 한다. BackgroundTask가 두 번 걸리면
+    카드가 두 장 생성되어 LLM 비용이 2배가 된다 — 이 테스트가 지키는 것이 그 지점이다.
+    """
+    from postgrest.exceptions import APIError
+
+    import middleware.auth as auth_module
+    monkeypatch.setattr(auth_module.settings, "supabase_jwt_secret", TEST_SECRET)
+
+    mock_client = MagicMock()
+    reviews_call_count = [0]
+
+    def table_side_effect(table_name):
+        c = _chain()
+        if table_name == "projects":
+            c.execute.return_value.data = [{"id": TEST_PROJECT_ID}]
+        elif table_name == "signals":
+            c.execute.return_value.data = [{"id": TEST_SIGNAL_ID}]
+        elif table_name == "reviews":
+            reviews_call_count[0] += 1
+            if reviews_call_count[0] == 1:
+                # 멱등성 SELECT — 경쟁 요청이 아직 INSERT 전이라 아무것도 안 보인다
+                c.execute.return_value.data = []
+            elif reviews_call_count[0] == 2:
+                # INSERT — 경쟁 요청이 먼저 넣어서 부분 유니크 인덱스 위반
+                c.execute.side_effect = APIError({
+                    "code": "23505",
+                    "message": 'duplicate key value violates unique constraint '
+                               '"uq_reviews_active_signal_project"',
+                    "details": "",
+                    "hint": "",
+                })
+            else:
+                # 복구 SELECT — 이긴 쪽이 넣어둔 행
+                c.execute.return_value.data = [{"id": TEST_REVIEW_ID, "status": "pending"}]
+        return c
+
+    mock_client.table.side_effect = table_side_effect
+
+    with patch("routers.reviews.get_supabase", return_value=mock_client), \
+         patch("routers.reviews.run_review_from_pending") as mock_run:
+        from main import app
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/reviews/trigger",
+                json={"signal_id": TEST_SIGNAL_ID},
+                headers={"Authorization": f"Bearer {_make_token()}"},
+            )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["data"]["review_id"] == TEST_REVIEW_ID
+    assert body["error"] is None
+    mock_run.assert_not_called()
